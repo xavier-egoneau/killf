@@ -75,7 +75,11 @@ const PropertiesPanel = ({ componentsHook }) => {
 
     } catch (error) {
       console.error('❌ Props save failed:', error);
-      showSaveError('save-props');
+      if (error.message.includes('JSON')) {
+        showSaveError('save-props', 'Invalid JSON');
+      } else {
+        showSaveError('save-props');
+      }
     } finally {
       setIsSavingProps(false);
     }
@@ -153,12 +157,12 @@ const PropertiesPanel = ({ componentsHook }) => {
     }
   };
 
-  const showSaveError = (buttonId) => {
+  const showSaveError = (buttonId, customMessage = null) => {
     const button = document.getElementById(buttonId);
     if (button) {
       const originalText = button.textContent;
       const originalBg = button.style.backgroundColor;
-      button.textContent = '❌ Error';
+      button.textContent = customMessage || '❌ Error';
       button.style.backgroundColor = '#ef4444';
       setTimeout(() => {
         button.textContent = originalText;
@@ -319,13 +323,11 @@ const PropertiesPanel = ({ componentsHook }) => {
 
         {activeTab === 'code' && (
           <div className="p-4 h-full flex flex-col">
-            {/* Unsaved Changes Indicator for Code Mode */}
-            {hasUnsavedPropsChanges && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                <div className="text-yellow-700 font-medium text-sm mb-2">
-                  ⚠️ You have unsaved changes
-                </div>
-                <div className="flex gap-2">
+            {/* Code Editor Header */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-gray-700 font-medium text-sm">Props Definition</span>
+              <div className="flex gap-2">
+                {hasUnsavedPropsChanges && (
                   <button 
                     id="save-props"
                     onClick={savePropsChanges}
@@ -333,29 +335,9 @@ const PropertiesPanel = ({ componentsHook }) => {
                     className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center"
                   >
                     <Save size={12} className="mr-1" />
-                    {isSavingProps ? 'Saving...' : 'Save Props'}
+                    {isSavingProps ? 'Saving...' : 'Save'}
                   </button>
-                  <button 
-                    onClick={discardPropsChanges}
-                    className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 transition-colors"
-                  >
-                    🗑️ Discard
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Code Editor Header */}
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-700 font-medium text-sm">Props Definition</span>
-              <div className="flex gap-2">
-                <button 
-                  onClick={formatPropsCode}
-                  className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                  title="Format JSON"
-                >
-                  🎨 Format
-                </button>
+                )}
                 <button 
                   id="copy-props"
                   onClick={copyPropsToClipboard}
@@ -380,7 +362,7 @@ const PropertiesPanel = ({ componentsHook }) => {
 
             {/* Helper Text */}
             <div className="mt-2 text-xs text-gray-500">
-              💡 Edit props definition • Save manually using the button above • Use JSON format
+              💡 Edit props definition • Save using the button above when you have changes • Use JSON format
             </div>
 
             {/* Props Schema Help */}
