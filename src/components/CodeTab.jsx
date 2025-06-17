@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { renderTemplate, generateDefaultTemplate, validateTemplate } from '../utils/templateEngine';
+import { renderTemplate, validateTemplate } from '../utils/templateEngine';
 
 const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdateComponent }) => {
   const [activeCodeTab, setActiveCodeTab] = useState('template');
@@ -25,33 +25,10 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
 
   const selectedComp = getComponent(selectedComponent);
 
-  // Génération du CSS complet avec tokens
-  const generateCSS = () => {
+  // Génération du CSS spécifique au composant (sans les tokens CSS)
+  const generateComponentCSS = () => {
     if (!selectedComp) return '/* No component selected */';
-
-    const tokenCSS = `:root {
-  --color-primary: ${tokens.colors.primary};
-  --color-secondary: ${tokens.colors.secondary};
-  --color-success: ${tokens.colors.success};
-  --color-danger: ${tokens.colors.danger};
-  
-  --spacing-xs: ${tokens.spacing.xs};
-  --spacing-sm: ${tokens.spacing.sm};
-  --spacing-md: ${tokens.spacing.md};
-  --spacing-lg: ${tokens.spacing.lg};
-  --spacing-xl: ${tokens.spacing.xl};
-  
-  --font-family: ${tokens.typography.fontFamily};
-  --font-sm: ${tokens.typography.sizes.sm};
-  --font-md: ${tokens.typography.sizes.md};
-  --font-lg: ${tokens.typography.sizes.lg};
-  --font-xl: ${tokens.typography.sizes.xl};
-}
-
-/* ${selectedComp.name} Component */
-${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
-
-    return tokenCSS;
+    return selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`;
   };
 
   // Génération du HTML final (template + props)
@@ -68,7 +45,7 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
     if (selectedComp) {
       const newTemplateCode = selectedComp.template || '';
       const newHtmlCode = generateFinalHTML();
-      const newCssCode = generateCSS();
+      const newCssCode = generateComponentCSS();
       
       setTemplateCode(newTemplateCode);
       setHtmlCode(newHtmlCode);
@@ -102,10 +79,9 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
   // Vérifier les changements 
   useEffect(() => {
     const hasChanges = templateCode !== originalTemplateCode || 
-                      htmlCode !== originalHtmlCode || 
                       cssCode !== originalCssCode;
     setHasUnsavedChanges(hasChanges);
-  }, [templateCode, htmlCode, cssCode, originalTemplateCode, originalHtmlCode, originalCssCode]);
+  }, [templateCode, cssCode, originalTemplateCode, originalCssCode]);
 
   // Fonction de sauvegarde améliorée
   const saveChanges = async () => {
@@ -135,18 +111,9 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
         cssChanged: cssCode !== originalCssCode
       });
 
-      // Extraire seulement la partie SCSS (sans les tokens CSS)
-      const lines = cssCode.split('\n');
-      const componentStartIndex = lines.findIndex(line => line.includes(`/* ${selectedComp.name} Component */`));
-      
-      let scssOnly = selectedComp.scss || '';
-      if (componentStartIndex !== -1 && componentStartIndex < lines.length - 1) {
-        scssOnly = lines.slice(componentStartIndex + 1).join('\n').trim();
-      }
-
       // Préparer les updates
       const updates = {
-        scss: scssOnly
+        scss: cssCode
       };
 
       // Si le template a été modifié, l'inclure dans la sauvegarde
@@ -156,7 +123,7 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
       }
 
       console.log('📤 Updates to send:', {
-        scss: scssOnly.substring(0, 100) + '...',
+        scss: updates.scss.substring(0, 100) + '...',
         template: updates.template ? updates.template.substring(0, 100) + '...' : 'not modified'
       });
 
@@ -182,7 +149,6 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
   };
 
   const showSaveSuccess = () => {
-    // Essayer tous les boutons de sauvegarde possibles
     const buttons = ['save-code', 'save-html', 'save-template'];
     buttons.forEach(buttonId => {
       const button = document.getElementById(buttonId);
@@ -200,7 +166,6 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
   };
 
   const showSaveError = (message = 'Save failed') => {
-    // Essayer tous les boutons de sauvegarde possibles
     const buttons = ['save-code', 'save-html', 'save-template'];
     buttons.forEach(buttonId => {
       const button = document.getElementById(buttonId);
@@ -217,21 +182,6 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
     });
   };
 
-  const discardChanges = () => {
-    setTemplateCode(originalTemplateCode);
-    setHtmlCode(originalHtmlCode);
-    setCssCode(originalCssCode);
-    setHasUnsavedChanges(false);
-  };
-
-  const generateDefaultTemplate = () => {
-    if (!selectedComp) return;
-    
-    const newTemplate = generateDefaultTemplate(selectedComp.category, selectedComp.name, selectedComp.props);
-    setTemplateCode(newTemplate);
-    console.log('🔄 Generated default template for', selectedComp.name);
-  };
-
   const copyToClipboard = (text, type) => {
     navigator.clipboard.writeText(text).then(() => {
       const button = document.getElementById(`copy-${type}`);
@@ -245,32 +195,6 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
     }).catch(err => {
       console.error('Failed to copy:', err);
     });
-  };
-
-  const formatCode = (type) => {
-    try {
-      if (type === 'html' || type === 'template') {
-        // Simple HTML formatting
-        const code = type === 'html' ? htmlCode : templateCode;
-        const formatted = code
-          .replace(/></g, '>\n<')
-          .replace(/^\s+|\s+$/g, '')
-          .split('\n')
-          .map((line, index) => {
-            const depth = (line.match(/</g) || []).length - (line.match(/\//g) || []).length;
-            return '  '.repeat(Math.max(0, depth)) + line.trim();
-          })
-          .join('\n');
-        
-        if (type === 'html') {
-          setHtmlCode(formatted);
-        } else {
-          setTemplateCode(formatted);
-        }
-      }
-    } catch (error) {
-      console.error(`Error formatting ${type}:`, error);
-    }
   };
 
   if (!selectedComp) {
@@ -315,8 +239,6 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
           </ul>
         </div>
       )}
-
-
 
       {/* Tab Navigation */}
       <div className="flex space-x-1 mb-4 bg-gray-100 p-1 rounded-lg">
@@ -368,20 +290,6 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
                   {isSaving ? '💾 Saving...' : '💾 Save Template'}
                 </button>
                 <button 
-                  onClick={generateDefaultTemplate}
-                  className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors"
-                  title="Generate default template"
-                >
-                  🔄 Generate
-                </button>
-                <button 
-                  onClick={() => formatCode('template')}
-                  className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                  title="Format template"
-                >
-                  🎨 Format
-                </button>
-                <button 
                   id="copy-template"
                   onClick={() => copyToClipboard(templateCode, 'template')}
                   className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
@@ -412,14 +320,6 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
               <span className="text-gray-700 font-medium text-sm">Preview HTML (Generated from Template + Props)</span>
               <div className="flex gap-2">
                 <button 
-                  id="save-html"
-                  onClick={saveChanges}
-                  disabled={isSaving || !templateValidation.isValid}
-                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {isSaving ? '💾 Saving...' : '💾 Save Template'}
-                </button>
-                <button 
                   id="copy-html"
                   onClick={() => copyToClipboard(htmlCode, 'html')}
                   className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 transition-colors"
@@ -447,8 +347,16 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
         {activeCodeTab === 'css' && (
           <div className="h-full flex flex-col">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-700 font-medium text-sm">CSS/SCSS Styles</span>
+              <span className="text-gray-700 font-medium text-sm">CSS/SCSS Styles (Component Only)</span>
               <div className="flex gap-2">
+                <button 
+                  id="save-css"
+                  onClick={saveChanges}
+                  disabled={isSaving}
+                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? '💾 Saving...' : '💾 Save CSS'}
+                </button>
                 <button 
                   id="copy-css"
                   onClick={() => copyToClipboard(cssCode, 'css')}
@@ -469,7 +377,7 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
               placeholder="CSS/SCSS styles for your component..."
             />
             <div className="mt-2 text-xs text-gray-500">
-              💡 Use CSS variables like --color-primary for theming • Full SCSS support
+              💡 Use CSS variables like --color-primary for theming • Only component-specific styles (design tokens are injected automatically)
             </div>
           </div>
         )}
