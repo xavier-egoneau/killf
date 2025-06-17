@@ -224,7 +224,7 @@ const PropertiesPanel = ({ componentsHook }) => {
             }`}
           >
             <Eye size={14} className="mr-1" />
-            Visual {hasUnsavedVisualChanges && <span className="text-red-500 ml-1">●</span>}
+            Visual
           </button>
           <button
             onClick={() => setActiveTab('code')}
@@ -244,32 +244,6 @@ const PropertiesPanel = ({ componentsHook }) => {
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'visual' && (
           <div className="p-4 space-y-4">
-            {/* Unsaved Changes Indicator for Visual Mode */}
-            {hasUnsavedVisualChanges && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                <div className="text-yellow-700 font-medium text-sm mb-2">
-                  ⚠️ You have unsaved prop changes
-                </div>
-                <div className="flex gap-2">
-                  <button 
-                    id="save-visual-props"
-                    onClick={saveVisualPropsChanges}
-                    disabled={isSavingProps}
-                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center"
-                  >
-                    <Save size={12} className="mr-1" />
-                    {isSavingProps ? 'Saving...' : 'Save as Defaults'}
-                  </button>
-                  <button 
-                    onClick={discardVisualChanges}
-                    className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 transition-colors"
-                  >
-                    🗑️ Discard
-                  </button>
-                </div>
-              </div>
-            )}
-
             {Object.entries(componentProps).map(([propKey, config]) => (
               <div key={propKey}>
                 <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
@@ -330,6 +304,16 @@ const PropertiesPanel = ({ componentsHook }) => {
                 No properties available for this component.
               </div>
             )}
+
+            {/* Info sur l'application en temps réel */}
+            <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="text-green-700 font-medium text-sm mb-1">
+                ✅ Real-time Updates
+              </div>
+              <div className="text-green-600 text-xs">
+                Changes are applied instantly to the visual preview. Use Code mode to modify the props definition.
+              </div>
+            </div>
           </div>
         )}
 

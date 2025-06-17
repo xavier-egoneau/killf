@@ -3,6 +3,9 @@ server/node_modules
 server/design.db
 server/design.db-shm
 server/design.db-wal
+design.db
+design.db-shm
+design.db-wal
 roadmap.md
 base.md
 package-lock.json

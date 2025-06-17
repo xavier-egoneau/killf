@@ -182,31 +182,39 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
   };
 
   const showSaveSuccess = () => {
-    const button = document.getElementById('save-code');
-    if (button) {
-      const originalText = button.textContent;
-      const originalBg = button.style.backgroundColor;
-      button.textContent = '✅ Saved!';
-      button.style.backgroundColor = '#10b981';
-      setTimeout(() => {
-        button.textContent = originalText;
-        button.style.backgroundColor = originalBg;
-      }, 2000);
-    }
+    // Essayer tous les boutons de sauvegarde possibles
+    const buttons = ['save-code', 'save-html', 'save-template'];
+    buttons.forEach(buttonId => {
+      const button = document.getElementById(buttonId);
+      if (button) {
+        const originalText = button.textContent;
+        const originalBg = button.style.backgroundColor;
+        button.textContent = '✅ Saved!';
+        button.style.backgroundColor = '#10b981';
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.style.backgroundColor = originalBg;
+        }, 2000);
+      }
+    });
   };
 
   const showSaveError = (message = 'Save failed') => {
-    const button = document.getElementById('save-code');
-    if (button) {
-      const originalText = button.textContent;
-      const originalBg = button.style.backgroundColor;
-      button.textContent = '❌ Error';
-      button.style.backgroundColor = '#ef4444';
-      setTimeout(() => {
-        button.textContent = originalText;
-        button.style.backgroundColor = originalBg;
-      }, 3000);
-    }
+    // Essayer tous les boutons de sauvegarde possibles
+    const buttons = ['save-code', 'save-html', 'save-template'];
+    buttons.forEach(buttonId => {
+      const button = document.getElementById(buttonId);
+      if (button) {
+        const originalText = button.textContent;
+        const originalBg = button.style.backgroundColor;
+        button.textContent = '❌ Error';
+        button.style.backgroundColor = '#ef4444';
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.style.backgroundColor = originalBg;
+        }, 3000);
+      }
+    });
   };
 
   const discardChanges = () => {
@@ -308,30 +316,7 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
         </div>
       )}
 
-      {/* Unsaved Changes Indicator */}
-      {hasUnsavedChanges && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-          <div className="text-yellow-700 font-medium text-sm mb-2">
-            ⚠️ You have unsaved changes
-          </div>
-          <div className="flex gap-2">
-            <button 
-              id="save-code"
-              onClick={saveChanges}
-              disabled={isSaving || !templateValidation.isValid}
-              className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-            >
-              {isSaving ? '💾 Saving...' : '💾 Save Changes'}
-            </button>
-            <button 
-              onClick={discardChanges}
-              className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 transition-colors"
-            >
-              🗑️ Discard
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* Tab Navigation */}
       <div className="flex space-x-1 mb-4 bg-gray-100 p-1 rounded-lg">
@@ -374,6 +359,14 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-700 font-medium text-sm">Template (with variables)</span>
               <div className="flex gap-2">
+                <button 
+                  id="save-template"
+                  onClick={saveChanges}
+                  disabled={isSaving || !templateValidation.isValid}
+                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? '💾 Saving...' : '💾 Save Template'}
+                </button>
                 <button 
                   onClick={generateDefaultTemplate}
                   className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors"
@@ -419,11 +412,12 @@ ${selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`}`;
               <span className="text-gray-700 font-medium text-sm">Preview HTML (Generated from Template + Props)</span>
               <div className="flex gap-2">
                 <button 
-                  onClick={() => formatCode('html')}
-                  className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors"
-                  title="Format HTML"
+                  id="save-html"
+                  onClick={saveChanges}
+                  disabled={isSaving || !templateValidation.isValid}
+                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50"
                 >
-                  🎨 Format
+                  {isSaving ? '💾 Saving...' : '💾 Save Template'}
                 </button>
                 <button 
                   id="copy-html"
