@@ -1,7 +1,10 @@
+// components/CodeTab.jsx - Version avec i18n
 import React, { useState, useEffect } from 'react';
 import { renderTemplate, validateTemplate } from '../utils/templateEngine';
+import { useI18n } from '../hooks/useI18n';
 
 const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdateComponent }) => {
+  const { t } = useI18n();
   const [activeCodeTab, setActiveCodeTab] = useState('template');
   const [templateCode, setTemplateCode] = useState('');
   const [htmlCode, setHtmlCode] = useState('');
@@ -11,8 +14,6 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
   const [originalHtmlCode, setOriginalHtmlCode] = useState('');
   const [originalCssCode, setOriginalCssCode] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [templateValidation, setTemplateValidation] = useState({ isValid: true, errors: [] });
-
   const getComponent = (componentPath) => {
     if (!componentPath) return null;
     
@@ -27,14 +28,14 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
 
   // Génération du CSS spécifique au composant (sans les tokens CSS)
   const generateComponentCSS = () => {
-    if (!selectedComp) return '/* No component selected */';
+    if (!selectedComp) return `/* ${t('noComponentSelected')} */`;
     return selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`;
   };
 
   // Génération du HTML final (template + props)
   const generateFinalHTML = () => {
     if (!selectedComp || !selectedComp.template) {
-      return '<!-- No template defined for this component -->';
+      return `<!-- ${t('noTemplateForComponent')} -->`;
     }
     
     return renderTemplate(selectedComp.template, currentProps);
@@ -83,7 +84,7 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
     setHasUnsavedChanges(hasChanges);
   }, [templateCode, cssCode, originalTemplateCode, originalCssCode]);
 
-  // Fonction de sauvegarde améliorée
+  // Fonction de sauvegarde principale
   const saveChanges = async () => {
     if (!selectedComp || !onUpdateComponent || !hasUnsavedChanges) {
       console.log('⚠️ Cannot save: missing component, update function, or no changes');
@@ -92,7 +93,7 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
 
     if (!templateValidation.isValid) {
       console.log('⚠️ Cannot save: template has validation errors');
-      showSaveError('Template validation failed');
+      showSaveError(t('templateValidationFailed'));
       return;
     }
 
@@ -148,14 +149,30 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
     }
   };
 
+  // Écouter l'événement Save All
+  useEffect(() => {
+    const handleSaveAll = async () => {
+      console.log('🔄 Save All triggered for CodeTab');
+      if (hasUnsavedChanges) {
+        await saveChanges();
+      }
+    };
+
+    window.addEventListener('saveAll', handleSaveAll);
+    
+    return () => {
+      window.removeEventListener('saveAll', handleSaveAll);
+    };
+  }, [hasUnsavedChanges, saveChanges]);
+
   const showSaveSuccess = () => {
-    const buttons = ['save-code', 'save-html', 'save-template'];
+    const buttons = ['save-code', 'save-html', 'save-template', 'save-css'];
     buttons.forEach(buttonId => {
       const button = document.getElementById(buttonId);
       if (button) {
         const originalText = button.textContent;
         const originalBg = button.style.backgroundColor;
-        button.textContent = '✅ Saved!';
+        button.textContent = `✅ ${t('saved')}`;
         button.style.backgroundColor = '#10b981';
         setTimeout(() => {
           button.textContent = originalText;
@@ -165,14 +182,14 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
     });
   };
 
-  const showSaveError = (message = 'Save failed') => {
-    const buttons = ['save-code', 'save-html', 'save-template'];
+  const showSaveError = (message = t('saveFailed')) => {
+    const buttons = ['save-code', 'save-html', 'save-template', 'save-css'];
     buttons.forEach(buttonId => {
       const button = document.getElementById(buttonId);
       if (button) {
         const originalText = button.textContent;
         const originalBg = button.style.backgroundColor;
-        button.textContent = '❌ Error';
+        button.textContent = `❌ ${message}`;
         button.style.backgroundColor = '#ef4444';
         setTimeout(() => {
           button.textContent = originalText;
@@ -187,7 +204,7 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
       const button = document.getElementById(`copy-${type}`);
       if (button) {
         const originalText = button.textContent;
-        button.textContent = '✅ Copied!';
+        button.textContent = `✅ ${t('copied')}`;
         setTimeout(() => {
           button.textContent = originalText;
         }, 2000);
@@ -201,8 +218,8 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
     return (
       <div className="h-full flex items-center justify-center bg-gray-50">
         <div className="text-gray-500 text-center">
-          <div className="text-lg mb-2">No component selected</div>
-          <div className="text-sm">Select a component from the sidebar to edit</div>
+          <div className="text-lg mb-2">{t('noComponentSelected')}</div>
+          <div className="text-sm">{t('selectComponent')}</div>
         </div>
       </div>
     );
@@ -212,9 +229,17 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
     <div className="h-full flex flex-col bg-white p-4">
       {/* Current Props Display */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-        <div className="text-blue-700 font-medium text-sm mb-1">
-          📋 Current Props ({selectedComp.name})
-          {selectedComp.template && <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded">Has Template</span>}
+        <div className="text-blue-700 font-medium text-sm mb-1 flex items-center justify-between">
+          <span>
+            📋 {t('currentProps')} ({selectedComp.name})
+            {selectedComp.template && <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded">{t('hasTemplate')}</span>}
+          </span>
+          {hasUnsavedChanges && (
+            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded flex items-center">
+              <span className="w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse"></span>
+              {t('unsavedChanges')}
+            </span>
+          )}
         </div>
         <div className="text-blue-600 text-xs font-mono">
           {Object.keys(currentProps || {}).length > 0 
@@ -230,7 +255,7 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
       {!templateValidation.isValid && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
           <div className="text-red-700 font-medium text-sm mb-2">
-            ❌ Template Validation Errors
+            ❌ {t('templateValidationErrors')}
           </div>
           <ul className="text-red-600 text-xs space-y-1">
             {templateValidation.errors.map((error, index) => (
@@ -250,7 +275,7 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          🔧 Template {templateCode !== originalTemplateCode && <span className="text-red-500">●</span>}
+          🔧 {t('template')} {templateCode !== originalTemplateCode && <span className="text-red-500">●</span>}
         </button>
         <button
           onClick={() => setActiveCodeTab('html')}
@@ -260,7 +285,7 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          📄 Preview HTML
+          📄 {t('previewHTML')}
         </button>
         <button
           onClick={() => setActiveCodeTab('css')}
@@ -279,22 +304,14 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
         {activeCodeTab === 'template' && (
           <div className="h-full flex flex-col">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-700 font-medium text-sm">Template (with variables)</span>
+              <span className="text-gray-700 font-medium text-sm">{t('templateWithVariables')}</span>
               <div className="flex gap-2">
-                <button 
-                  id="save-template"
-                  onClick={saveChanges}
-                  disabled={isSaving || !templateValidation.isValid}
-                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {isSaving ? '💾 Saving...' : '💾 Save Template'}
-                </button>
                 <button 
                   id="copy-template"
                   onClick={() => copyToClipboard(templateCode, 'template')}
                   className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
                 >
-                  📋 Copy
+                  📋 {t('copy')}
                 </button>
               </div>
             </div>
@@ -306,10 +323,10 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
                 minHeight: '400px',
                 lineHeight: '1.6'
               }}
-              placeholder="HTML template with variables..."
+              placeholder={t('templatePlaceholder')}
             />
             <div className="mt-2 text-xs text-gray-500">
-              💡 Use <code>{'{{propName}}'}</code> for variables • <code>{'{{#if propName}}...{{/if}}'}</code> for conditionals • <code>{'{{#class propName}}class-name{{/class}}'}</code> for conditional classes
+              💡 {t('useVariables')}
             </div>
           </div>
         )}
@@ -317,14 +334,14 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
         {activeCodeTab === 'html' && (
           <div className="h-full flex flex-col">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-700 font-medium text-sm">Preview HTML (Generated from Template + Props)</span>
+              <span className="text-gray-700 font-medium text-sm">{t('previewHTMLGenerated')}</span>
               <div className="flex gap-2">
                 <button 
                   id="copy-html"
                   onClick={() => copyToClipboard(htmlCode, 'html')}
                   className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 transition-colors"
                 >
-                  📋 Copy
+                  📋 {t('copy')}
                 </button>
               </div>
             </div>
@@ -336,10 +353,10 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
                 minHeight: '400px',
                 lineHeight: '1.6'
               }}
-              placeholder="Generated HTML will appear here..."
+              placeholder={t('generatedHTML')}
             />
             <div className="mt-2 text-xs text-gray-500">
-              💡 This HTML is automatically generated from your template + current props values • Changes in Template or Properties will update this preview
+              💡 {t('htmlGenerated')}
             </div>
           </div>
         )}
@@ -347,22 +364,14 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
         {activeCodeTab === 'css' && (
           <div className="h-full flex flex-col">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-700 font-medium text-sm">CSS/SCSS Styles (Component Only)</span>
+              <span className="text-gray-700 font-medium text-sm">{t('cssStylesComponentOnly')}</span>
               <div className="flex gap-2">
-                <button 
-                  id="save-css"
-                  onClick={saveChanges}
-                  disabled={isSaving}
-                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {isSaving ? '💾 Saving...' : '💾 Save CSS'}
-                </button>
                 <button 
                   id="copy-css"
                   onClick={() => copyToClipboard(cssCode, 'css')}
                   className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
                 >
-                  📋 Copy
+                  📋 {t('copy')}
                 </button>
               </div>
             </div>
@@ -374,10 +383,10 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
                 minHeight: '400px',
                 lineHeight: '1.6'
               }}
-              placeholder="CSS/SCSS styles for your component..."
+              placeholder={t('cssPlaceholder')}
             />
             <div className="mt-2 text-xs text-gray-500">
-              💡 Use CSS variables like --color-primary for theming • Only component-specific styles (design tokens are injected automatically)
+              💡 {t('cssVariables')}
             </div>
           </div>
         )}

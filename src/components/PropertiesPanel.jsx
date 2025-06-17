@@ -1,7 +1,10 @@
+// components/PropertiesPanel.jsx - Version avec i18n
 import React, { useState, useEffect } from 'react';
 import { Settings, Eye, Code, Save } from 'lucide-react';
+import { useI18n } from '../hooks/useI18n';
 
 const PropertiesPanel = ({ componentsHook }) => {
+  const { t } = useI18n();
   const { currentProps, updateComponentProp, getComponentProps, selectedComponent, getComponent, updateComponent } = componentsHook;
   const [activeTab, setActiveTab] = useState('visual');
   const [propsCode, setPropsCode] = useState('');
@@ -135,20 +138,28 @@ const PropertiesPanel = ({ componentsHook }) => {
     setHasUnsavedPropsChanges(false);
   };
 
-  const discardVisualChanges = () => {
-    // Reset des props visuelles aux dernières valeurs sauvegardées
-    Object.entries(lastSavedProps).forEach(([key, value]) => {
-      updateComponentProp(key, value);
-    });
-    setHasUnsavedVisualChanges(false);
-  };
+  // Écouter l'événement Save All
+  useEffect(() => {
+    const handleSaveAll = async () => {
+      console.log('🔄 Save All triggered for PropertiesPanel');
+      if (activeTab === 'code' && hasUnsavedPropsChanges) {
+        await savePropsChanges();
+      }
+    };
+
+    window.addEventListener('saveAll', handleSaveAll);
+    
+    return () => {
+      window.removeEventListener('saveAll', handleSaveAll);
+    };
+  }, [activeTab, hasUnsavedPropsChanges, savePropsChanges]);
 
   const showSaveSuccess = (buttonId) => {
     const button = document.getElementById(buttonId);
     if (button) {
       const originalText = button.textContent;
       const originalBg = button.style.backgroundColor;
-      button.textContent = '✅ Saved!';
+      button.textContent = `✅ ${t('saved')}`;
       button.style.backgroundColor = '#10b981';
       setTimeout(() => {
         button.textContent = originalText;
@@ -162,7 +173,7 @@ const PropertiesPanel = ({ componentsHook }) => {
     if (button) {
       const originalText = button.textContent;
       const originalBg = button.style.backgroundColor;
-      button.textContent = customMessage || '❌ Error';
+      button.textContent = customMessage || `❌ ${t('error')}`;
       button.style.backgroundColor = '#ef4444';
       setTimeout(() => {
         button.textContent = originalText;
@@ -176,7 +187,7 @@ const PropertiesPanel = ({ componentsHook }) => {
       const button = document.getElementById('copy-props');
       if (button) {
         const originalText = button.textContent;
-        button.textContent = '✅ Copied!';
+        button.textContent = `✅ ${t('copied')}`;
         setTimeout(() => {
           button.textContent = originalText;
         }, 2000);
@@ -199,10 +210,10 @@ const PropertiesPanel = ({ componentsHook }) => {
       <div className="w-80 bg-white border-l border-gray-200 p-6">
         <h3 className="text-lg font-medium mb-4 flex items-center">
           <Settings size={18} className="mr-2" />
-          Properties
+          {t('properties')}
         </h3>
         <div className="text-gray-500 text-sm">
-          No component selected
+          {t('noComponentSelected')}
         </div>
       </div>
     );
@@ -214,7 +225,7 @@ const PropertiesPanel = ({ componentsHook }) => {
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-lg font-medium mb-4 flex items-center">
           <Settings size={18} className="mr-2" />
-          Properties
+          {t('properties')}
         </h3>
         
         {/* Tab Navigation */}
@@ -228,7 +239,7 @@ const PropertiesPanel = ({ componentsHook }) => {
             }`}
           >
             <Eye size={14} className="mr-1" />
-            Visual
+            {t('visual')}
           </button>
           <button
             onClick={() => setActiveTab('code')}
@@ -239,7 +250,7 @@ const PropertiesPanel = ({ componentsHook }) => {
             }`}
           >
             <Code size={14} className="mr-1" />
-            Code {hasUnsavedPropsChanges && <span className="text-red-500 ml-1">●</span>}
+            {t('code')} {hasUnsavedPropsChanges && <span className="text-red-500 ml-1">●</span>}
           </button>
         </div>
       </div>
@@ -251,7 +262,7 @@ const PropertiesPanel = ({ componentsHook }) => {
             {Object.entries(componentProps).map(([propKey, config]) => (
               <div key={propKey}>
                 <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                  {propKey}
+                  {t(propKey) !== propKey ? t(propKey) : propKey}
                   {config.description && (
                     <span className="text-xs text-gray-500 ml-2">({config.description})</span>
                   )}
@@ -297,7 +308,7 @@ const PropertiesPanel = ({ componentsHook }) => {
                       onChange={(e) => updateComponentPropWithSave(propKey, e.target.checked)}
                       className="mr-2 focus:ring-2 focus:ring-blue-500"
                     />
-                    <span className="text-sm text-gray-600">Enabled</span>
+                    <span className="text-sm text-gray-600">{t('enabled')}</span>
                   </label>
                 )}
               </div>
@@ -305,17 +316,17 @@ const PropertiesPanel = ({ componentsHook }) => {
             
             {Object.keys(componentProps).length === 0 && (
               <div className="text-gray-500 text-sm">
-                No properties available for this component.
+                {t('noPropertiesAvailable')}
               </div>
             )}
 
             {/* Info sur l'application en temps réel */}
             <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-3">
               <div className="text-green-700 font-medium text-sm mb-1">
-                ✅ Real-time Updates
+                ✅ {t('realTimeUpdates')}
               </div>
               <div className="text-green-600 text-xs">
-                Changes are applied instantly to the visual preview. Use Code mode to modify the props definition.
+                {t('changesAppliedInstantly')}
               </div>
             </div>
           </div>
@@ -325,7 +336,7 @@ const PropertiesPanel = ({ componentsHook }) => {
           <div className="p-4 h-full flex flex-col">
             {/* Code Editor Header */}
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-700 font-medium text-sm">Props Definition</span>
+              <span className="text-gray-700 font-medium text-sm">{t('propsDefinition')}</span>
               <div className="flex gap-2">
                 {hasUnsavedPropsChanges && (
                   <button 
@@ -335,7 +346,7 @@ const PropertiesPanel = ({ componentsHook }) => {
                     className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center"
                   >
                     <Save size={12} className="mr-1" />
-                    {isSavingProps ? 'Saving...' : 'Save'}
+                    {isSavingProps ? t('saving') : t('save')}
                   </button>
                 )}
                 <button 
@@ -343,7 +354,7 @@ const PropertiesPanel = ({ componentsHook }) => {
                   onClick={copyPropsToClipboard}
                   className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 transition-colors"
                 >
-                  📋 Copy
+                  📋 {t('copy')}
                 </button>
               </div>
             </div>
@@ -362,13 +373,13 @@ const PropertiesPanel = ({ componentsHook }) => {
 
             {/* Helper Text */}
             <div className="mt-2 text-xs text-gray-500">
-              💡 Edit props definition • Save using the button above when you have changes • Use JSON format
+              💡 {t('editPropsDefinition')}
             </div>
 
             {/* Props Schema Help */}
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="text-blue-700 font-medium text-sm mb-2">
-                📋 Props Schema
+                📋 {t('propsSchema')}
               </div>
               <div className="text-blue-600 text-xs space-y-1">
                 <div><code>"type"</code>: "string" | "boolean" | "select" | "number"</div>

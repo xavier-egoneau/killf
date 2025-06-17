@@ -1,7 +1,11 @@
+// components/VisualTab.jsx - Version avec i18n
 import React from 'react';
 import { renderTemplate } from '../utils/templateEngine';
+import { useI18n } from '../hooks/useI18n';
 
 const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
+  const { t } = useI18n();
+  
   const getComponent = (componentPath) => {
     if (componentPath.includes('.')) {
       const [category, key] = componentPath.split('.');
@@ -12,10 +16,10 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
 
   const renderComponent = () => {
     const comp = getComponent(selectedComponent);
-    if (!comp) return <div className="text-gray-500">No component selected</div>;
+    if (!comp) return <div className="text-gray-500">{t('noComponentSelected')}</div>;
 
     if (!components || !components.atoms) {
-      return <div className="text-gray-400 text-sm">Loading components...</div>;
+      return <div className="text-gray-400 text-sm">{t('loadingComponents')}</div>;
     }
 
     // Si le composant a un template, l'utiliser
@@ -68,7 +72,7 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
       }}>
         <h3 style={{ margin: `0 0 ${tokens.spacing.md} 0` }}>{comp.name}</h3>
         <p style={{ margin: 0, marginBottom: tokens.spacing.md }}>
-          {comp.category.charAt(0).toUpperCase() + comp.category.slice(1)} component
+          {t(comp.category)} component
         </p>
         <div style={{
           marginTop: tokens.spacing.lg,
@@ -81,7 +85,7 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
           Props: {Object.keys(comp.props || {}).join(', ') || 'None'}
         </div>
         <div className="mt-4 text-xs text-orange-600">
-          ⚠️ This component needs a template. Go to Code tab to add one.
+          ⚠️ {t('componentNeedsTemplate')}
         </div>
       </div>
     );
