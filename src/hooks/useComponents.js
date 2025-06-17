@@ -3,39 +3,61 @@ import { defaultComponents } from '../data/components';
 
 const API_BASE = 'http://localhost:3001/api';
 
-/**
- * Hook for managing components and their state
- */
 export const useComponents = () => {
-  const [components, setComponents] = useState({});
+  const [components, setComponents] = useState(defaultComponents);
   const [selectedComponent, setSelectedComponent] = useState('button');
   const [currentProps, setCurrentProps] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Charger les composants depuis l'API
   useEffect(() => {
+    setIsLoading(true);
+    
     fetch(`${API_BASE}/components`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('API not available');
+        return res.json();
+      })
       .then(data => {
-        setComponents(data);
+        // Merger les données de l'API avec les defaults
+        const mergedComponents = { ...defaultComponents };
+        
+        Object.keys(data).forEach(category => {
+          if (!mergedComponents[category]) mergedComponents[category] = {};
+          Object.keys(data[category]).forEach(key => {
+            mergedComponents[category][key] = {
+              ...mergedComponents[category][key],
+              ...data[category][key]
+            };
+          });
+        });
+        
+        setComponents(mergedComponents);
+        console.log('✅ Components loaded from API and merged with defaults');
       })
       .catch(err => {
-        console.error('Failed to load components from API:', err);
-        setComponents(defaultComponents); // fallback
+        console.warn('⚠️ Failed to load components from API, using defaults:', err.message);
+        setComponents(defaultComponents);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
   }, []);
 
-
-  // Helper function to get component by path
   const getComponent = (componentPath) => {
+    if (!componentPath) return null;
+    
     if (componentPath.includes('.')) {
       const [category, key] = componentPath.split('.');
-      return components[category] && components[category][key] ? components[category][key] : null;
+      return components[category]?.[key] || null;
     }
-    return (components.atoms?.[componentPath] || components.molecules?.[componentPath]) || null;
-
+    
+    return components.atoms?.[componentPath] || 
+           components.molecules?.[componentPath] || 
+           null;
   };
 
-
-  // Update current props when selected component changes
+  // Update current props when selected component changes OR when component props definition changes
   useEffect(() => {
     const comp = getComponent(selectedComponent);
     if (comp && comp.props) {
@@ -44,23 +66,55 @@ export const useComponents = () => {
         defaultProps[key] = config.default;
       });
       setCurrentProps(defaultProps);
+      console.log('🔄 Updated currentProps from component definition:', defaultProps);
+    } else {
+      setCurrentProps({});
     }
   }, [selectedComponent, components]);
 
-  const addComponent = (category, key, component) => {
+  const addComponent = async (category, key, component) => {
+    const newComponent = {
+      ...component,
+      category
+    };
+
+    // Mise à jour locale immédiate
     setComponents(prev => ({
       ...prev,
       [category]: {
         ...prev[category],
-        [key]: {
-          ...component,
-          category
-        }
+        [key]: newComponent
       }
     }));
+
+    // Sauvegarde sur le serveur
+    try {
+      const response = await fetch(`${API_BASE}/components/${key}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: key,
+          name: newComponent.name,
+          category,
+          props: newComponent.props,
+          scss: newComponent.scss
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save component');
+      }
+      
+      console.log(`✅ Component ${key} saved successfully`);
+    } catch (err) {
+      console.error('❌ Save error:', err);
+    }
   };
 
-  const removeComponent = (category, key) => {
+  const removeComponent = async (category, key) => {
+    // Suppression locale
     setComponents(prev => {
       const newComponents = { ...prev };
       if (newComponents[category] && newComponents[category][key]) {
@@ -68,15 +122,33 @@ export const useComponents = () => {
       }
       return newComponents;
     });
+
+    // Suppression sur le serveur
+    try {
+      await fetch(`${API_BASE}/components/${key}`, {
+        method: 'DELETE'
+      });
+      console.log(`✅ Component ${key} deleted`);
+    } catch (err) {
+      console.error('❌ Delete error:', err);
+    }
   };
 
-  const updateComponent = (category, key, updates) => {
+  const updateComponent = async (category, key, updates) => {
+    console.log('🔄 updateComponent called:', { category, key, updates });
+    
+    const currentComponent = components[category]?.[key];
+    if (!currentComponent) {
+      console.error('❌ Component not found:', { category, key });
+      return;
+    }
+
     const updated = {
-      ...components[category][key],
+      ...currentComponent,
       ...updates
     };
 
-    // Local update
+    // Mise à jour locale immédiate
     setComponents(prev => ({
       ...prev,
       [category]: {
@@ -85,26 +157,47 @@ export const useComponents = () => {
       }
     }));
 
-    // Remote save
-    fetch(`${API_BASE}/components/${key}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+    // Sauvegarde sur le serveur avec template inclus
+    try {
+      const payload = {
         id: key,
         name: updated.name,
         category,
         props: updated.props,
         scss: updated.scss
-      })
-    }).then(res => {
-      if (!res.ok) {
-        console.warn('Failed to save component to backend');
+      };
+
+      // Inclure le template s'il existe dans les updates
+      if ('template' in updates) {
+        payload.template = updates.template;
       }
-    }).catch(err => {
-      console.error('Save error:', err);
-    });
+
+      console.log('📤 Sending to server:', {
+        ...payload,
+        template: payload.template ? `${payload.template.substring(0, 50)}...` : 'none'
+      });
+
+      const response = await fetch(`${API_BASE}/components/${key}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Server responded with ${response.status}: ${errorData.error}`);
+      }
+      
+      const result = await response.json();
+      console.log(`✅ Component ${key} updated successfully:`, result);
+      
+      return result;
+    } catch (err) {
+      console.error('❌ Update error:', err);
+      throw err; // Re-throw pour que le caller puisse gérer l'erreur
+    }
   };
 
   const updateComponentProp = (propKey, value) => {
@@ -116,7 +209,7 @@ export const useComponents = () => {
 
   const getComponentProps = () => {
     const comp = getComponent(selectedComponent);
-    return comp && comp.props ? comp.props : {};
+    return comp?.props || {};
   };
 
   const getAllComponents = () => {
@@ -160,6 +253,7 @@ export const useComponents = () => {
     components,
     selectedComponent,
     currentProps,
+    isLoading,
     setComponents,
     setSelectedComponent,
     setCurrentProps,

@@ -1,11 +1,4 @@
-export { 
-  generateCSSVariables, 
-  generateCompleteCSS, 
-  generateUtilityClasses 
-} from './cssGenerator';
-
-export { 
-  generateAIPrompt, 
-  generateComponentDocs, 
-  generateTokensDocs 
-} from './aiPromptGenerator';
+// Export all utilities from a single entry point
+export * from './aiPromptGenerator';
+export * from './cssGenerator';
+export * from './templateEngine';
