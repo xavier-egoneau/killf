@@ -1,4 +1,4 @@
-// components/Sidebar.jsx - Version sans sélecteur spacing preset
+// components/Sidebar.jsx - Version avec sauvegarde automatique des nouveaux composants
 import React, { useState } from 'react';
 import { 
   ChevronRight, 
@@ -58,7 +58,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
     removeColorToken,
     addSpacingToken,
     removeSpacingToken,
-    getCurrentSpacingPreset // 🆕 Nouvelle fonction
+    getCurrentSpacingPreset
   } = tokensHook;
   
   const { components, selectedComponent, setSelectedComponent, addComponent, removeComponent } = componentsHook;
@@ -127,23 +127,49 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
     }
   };
 
-  const handleAddComponent = (category) => {
+  // 🔥 FIX: Gestion améliorée de l'ajout de composant avec sauvegarde
+  const handleAddComponent = async (category) => {
     const categoryName = getCategoryTranslation(category);
     const componentName = prompt(t('enterComponentName', { category: categoryName }));
-    if (componentName) {
+    if (!componentName) return;
+    
+    try {
       const componentKey = componentName.toLowerCase().replace(/\s+/g, '');
+      
+      // Générer un template par défaut selon la catégorie
+      const getDefaultTemplate = (category) => {
+        switch (category) {
+          case 'atoms':
+            if (componentName.toLowerCase().includes('button')) {
+              return `<button class="${componentKey}{% if variant %} ${componentKey}--{{ variant }}{% endif %}{% if size %} ${componentKey}--{{ size }}{% endif %}"{% if disabled %} disabled{% endif %}>
+  {{ text|default('Button') }}
+</button>`;
+            }
+            return `<div class="${componentKey}">{{ text|default('${componentName}') }}</div>`;
+          case 'molecules':
+            return `<div class="${componentKey}">
+  {% if title %}<h3 class="${componentKey}__title">{{ title }}</h3>{% endif %}
+  {% if content %}<div class="${componentKey}__content">{{ content }}</div>{% endif %}
+</div>`;
+          default:
+            return `<div class="${componentKey}">{{ content|default('${componentName} content') }}</div>`;
+        }
+      };
+
       const newComponent = {
         name: componentName,
         category,
+        template: getDefaultTemplate(category), // 🆕 Template par défaut
         props: {
           // Default props based on category
           ...(category === 'atoms' && {
             variant: { type: 'select', options: ['default', 'primary'], default: 'default' },
-            size: { type: 'select', options: ['sm', 'md', 'lg'], default: 'md' }
+            size: { type: 'select', options: ['sm', 'md', 'lg'], default: 'md' },
+            text: { type: 'string', default: componentName }
           }),
           ...(category === 'molecules' && {
-            title: { type: 'string', default: t('title') },
-            content: { type: 'string', default: t('content') }
+            title: { type: 'string', default: `${componentName} Title` },
+            content: { type: 'string', default: `${componentName} content` }
           }),
           ...(category === 'organisms' && {
             layout: { type: 'select', options: ['horizontal', 'vertical'], default: 'horizontal' },
@@ -163,16 +189,43 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
   /* Add your styles here */
   padding: var(--spacing-md);
   border-radius: 4px;
+  background: var(--color-primary);
+  color: white;
+}
+
+.${componentKey}:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }`
       };
       
-      addComponent(category, componentKey, newComponent);
+      console.log('🆕 Creating new component:', newComponent);
       
-      // Select the new component
+      // 🔥 FIX: Attendre que la sauvegarde soit terminée
+      await addComponent(category, componentKey, newComponent);
+      
+      // Sélectionner le nouveau composant après création
       const newComponentPath = ['atoms', 'molecules'].includes(category) 
         ? componentKey 
         : `${category}.${componentKey}`;
       setSelectedComponent(newComponentPath);
+      
+      // 🆕 Signaler qu'un nouveau composant a été créé (pour déclencher les mises à jour)
+      const componentCreatedEvent = new CustomEvent('componentCreated', {
+        detail: { 
+          category, 
+          key: componentKey, 
+          component: newComponent,
+          path: newComponentPath
+        }
+      });
+      window.dispatchEvent(componentCreatedEvent);
+      
+      console.log('✅ Component created and selected:', newComponentPath);
+      
+    } catch (error) {
+      console.error('❌ Failed to create component:', error);
+      alert(`Erreur lors de la création du composant: ${error.message}`);
     }
   };
 
@@ -387,7 +440,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                 )}
               </div>
 
-              {/* Spacing Section - 🆕 Sans sélecteur preset, avec indicateur automatique */}
+              {/* Spacing Section */}
               <div>
                 <button 
                   onClick={() => toggleSection('spacing')}
@@ -400,7 +453,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                 
                 {expandedSections.spacing && (
                   <div className="mt-2 ml-4 space-y-3">
-                    {/* 🆕 Indicateur du preset automatique appliqué */}
+                    {/* Indicateur du preset automatique appliqué */}
                     <div className="p-2 bg-blue-50 border border-blue-200 rounded">
                       <div className="text-xs font-medium text-blue-700 mb-1">
                         🔄 Auto-Applied Preset
@@ -469,7 +522,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                 )}
               </div>
 
-              {/* Branding Section - 🆕 Avec Upload SVG */}
+              {/* Branding Section */}
               <div>
                 <button 
                   onClick={() => toggleSection('branding')}
@@ -493,7 +546,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                       />
                     </div>
                     
-                    {/* 🆕 Composant Logo Upload */}
+                    {/* Composant Logo Upload */}
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Brand Logo</label>
                       <LogoUpload
@@ -507,7 +560,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                 )}
               </div>
 
-              {/* Icons Section - 🆕 Avec Material Icons */}
+              {/* Icons Section */}
               <div>
                 <button 
                   onClick={() => toggleSection('icons')}
@@ -576,7 +629,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                 )}
               </div>
 
-              {/* Framework Section - 🆕 Avec indication du spacing automatique */}
+              {/* Framework Section */}
               <div>
                 <button 
                   onClick={() => toggleSection('framework')}

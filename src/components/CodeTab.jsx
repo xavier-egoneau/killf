@@ -1,7 +1,8 @@
-// components/CodeTab.jsx - Version avec i18n
+// components/CodeTab.jsx - Version corrigée avec détection changements
 import React, { useState, useEffect } from 'react';
 import { renderTemplate, validateTemplate } from '../utils/templateEngine';
 import { useI18n } from '../hooks/useI18n';
+import { Save } from 'lucide-react';
 
 const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdateComponent }) => {
   const { t } = useI18n();
@@ -11,7 +12,6 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
   const [cssCode, setCssCode] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalTemplateCode, setOriginalTemplateCode] = useState('');
-  const [originalHtmlCode, setOriginalHtmlCode] = useState('');
   const [originalCssCode, setOriginalCssCode] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [templateValidation, setTemplateValidation] = useState({ isValid: true, errors: [] });
@@ -28,42 +28,26 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
 
   const selectedComp = getComponent(selectedComponent);
 
-  // Génération du CSS spécifique au composant (sans les tokens CSS)
-  const generateComponentCSS = () => {
-    if (!selectedComp) return `/* ${t('noComponentSelected')} */`;
-    return selectedComp.scss || `/* No styles defined for ${selectedComp.name} */`;
-  };
-
-  // Génération du HTML final (template + props)
-  const generateFinalHTML = () => {
-    if (!selectedComp || !selectedComp.template) {
-      return `<!-- ${t('noTemplateForComponent')} -->`;
-    }
-    
-    return renderTemplate(selectedComp.template, currentProps);
-  };
-
   // Mettre à jour le code quand le composant change
   useEffect(() => {
     if (selectedComp) {
       const newTemplateCode = selectedComp.template || '';
-      const newHtmlCode = generateFinalHTML();
-      const newCssCode = generateComponentCSS();
+      const newCssCode = selectedComp.scss || '';
       
       setTemplateCode(newTemplateCode);
-      setHtmlCode(newHtmlCode);
       setCssCode(newCssCode);
       setOriginalTemplateCode(newTemplateCode);
-      setOriginalHtmlCode(newHtmlCode);
       setOriginalCssCode(newCssCode);
       setHasUnsavedChanges(false);
       
       console.log(`📄 Code updated for component: ${selectedComponent}`, {
         hasTemplate: !!selectedComp.template,
-        templateLength: newTemplateCode.length
+        hasCss: !!selectedComp.scss,
+        templateLength: newTemplateCode.length,
+        cssLength: newCssCode.length
       });
     }
-  }, [selectedComponent, tokens, selectedComp?.scss, selectedComp?.template]);
+  }, [selectedComponent, selectedComp?.template, selectedComp?.scss]);
 
   // Mettre à jour le HTML quand les props ou le template changent
   useEffect(() => {
@@ -79,23 +63,43 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
     setTemplateValidation(validation);
   }, [templateCode]);
 
-  // Vérifier les changements 
+  // 🔥 FIX: Vérifier les changements quand templateCode ou cssCode changent
   useEffect(() => {
     const hasChanges = templateCode !== originalTemplateCode || 
                       cssCode !== originalCssCode;
     setHasUnsavedChanges(hasChanges);
+    
+    // 🆕 Signaler les changements à l'App via custom event
+    const componentChangesEvent = new CustomEvent('componentChanges', {
+      detail: { hasChanges }
+    });
+    window.dispatchEvent(componentChangesEvent);
+    
+    console.log('🔍 Checking for changes:', {
+      templateChanged: templateCode !== originalTemplateCode,
+      cssChanged: cssCode !== originalCssCode,
+      hasChanges,
+      templateLength: templateCode.length,
+      originalTemplateLength: originalTemplateCode.length,
+      cssLength: cssCode.length,
+      originalCssLength: originalCssCode.length
+    });
   }, [templateCode, cssCode, originalTemplateCode, originalCssCode]);
 
   // Fonction de sauvegarde principale
   const saveChanges = async () => {
     if (!selectedComp || !onUpdateComponent || !hasUnsavedChanges) {
-      console.log('⚠️ Cannot save: missing component, update function, or no changes');
+      console.log('⚠️ Cannot save: missing component, update function, or no changes', {
+        hasComp: !!selectedComp,
+        hasUpdateFn: !!onUpdateComponent,
+        hasChanges: hasUnsavedChanges
+      });
       return;
     }
 
     if (!templateValidation.isValid) {
       console.log('⚠️ Cannot save: template has validation errors');
-      showSaveError(t('templateValidationFailed'));
+      showSaveError('save-code', t('templateValidationFailed'));
       return;
     }
 
@@ -114,20 +118,31 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
         cssChanged: cssCode !== originalCssCode
       });
 
-      // Préparer les updates
-      const updates = {
-        scss: cssCode
-      };
+      // Préparer les updates avec template ET CSS
+      const updates = {};
 
-      // Si le template a été modifié, l'inclure dans la sauvegarde
+      // Toujours inclure le CSS
+      if (cssCode !== originalCssCode) {
+        updates.scss = cssCode;
+        console.log('📝 CSS has been modified, saving CSS');
+      }
+
+      // Toujours inclure le template s'il a changé
       if (templateCode !== originalTemplateCode) {
         updates.template = templateCode;
         console.log('📝 Template has been modified, saving template');
       }
 
+      // 🔥 FIX: Si aucun changement détecté mais on force la sauvegarde
+      if (Object.keys(updates).length === 0) {
+        updates.scss = cssCode;
+        updates.template = templateCode;
+        console.log('🔄 Forcing save with current values');
+      }
+
       console.log('📤 Updates to send:', {
-        scss: updates.scss.substring(0, 100) + '...',
-        template: updates.template ? updates.template.substring(0, 100) + '...' : 'not modified'
+        scss: updates.scss ? `${updates.scss.substring(0, 50)}...` : 'not modified',
+        template: updates.template ? `${updates.template.substring(0, 50)}...` : 'not modified'
       });
 
       // Appeler la fonction de mise à jour
@@ -135,9 +150,14 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
 
       // Mettre à jour les états après une sauvegarde réussie
       setOriginalTemplateCode(templateCode);
-      setOriginalHtmlCode(htmlCode);
       setOriginalCssCode(cssCode);
       setHasUnsavedChanges(false);
+
+      // 🆕 Signaler que les changements sont sauvegardés
+      const componentChangesEvent = new CustomEvent('componentChanges', {
+        detail: { hasChanges: false }
+      });
+      window.dispatchEvent(componentChangesEvent);
 
       // Feedback visuel
       showSaveSuccess();
@@ -145,7 +165,7 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
       
     } catch (error) {
       console.error('❌ Save failed:', error);
-      showSaveError();
+      showSaveError('save-code');
     } finally {
       setIsSaving(false);
     }
@@ -154,7 +174,7 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
   // Écouter l'événement Save All
   useEffect(() => {
     const handleSaveAll = async () => {
-      console.log('🔄 Save All triggered for CodeTab');
+      console.log('🔄 Save All triggered for CodeTab', { hasUnsavedChanges });
       if (hasUnsavedChanges) {
         await saveChanges();
       }
@@ -165,10 +185,10 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
     return () => {
       window.removeEventListener('saveAll', handleSaveAll);
     };
-  }, [hasUnsavedChanges, saveChanges]);
+  }, [hasUnsavedChanges, templateCode, cssCode, originalTemplateCode, originalCssCode]);
 
   const showSaveSuccess = () => {
-    const buttons = ['save-code', 'save-html', 'save-template', 'save-css'];
+    const buttons = ['save-code', 'save-template', 'save-css'];
     buttons.forEach(buttonId => {
       const button = document.getElementById(buttonId);
       if (button) {
@@ -184,21 +204,18 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
     });
   };
 
-  const showSaveError = (message = t('saveFailed')) => {
-    const buttons = ['save-code', 'save-html', 'save-template', 'save-css'];
-    buttons.forEach(buttonId => {
-      const button = document.getElementById(buttonId);
-      if (button) {
-        const originalText = button.textContent;
-        const originalBg = button.style.backgroundColor;
-        button.textContent = `❌ ${message}`;
-        button.style.backgroundColor = '#ef4444';
-        setTimeout(() => {
-          button.textContent = originalText;
-          button.style.backgroundColor = originalBg;
-        }, 3000);
-      }
-    });
+  const showSaveError = (buttonId, customMessage = null) => {
+    const button = document.getElementById(buttonId);
+    if (button) {
+      const originalText = button.textContent;
+      const originalBg = button.style.backgroundColor;
+      button.textContent = customMessage || `❌ ${t('error')}`;
+      button.style.backgroundColor = '#ef4444';
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.style.backgroundColor = originalBg;
+      }, 3000);
+    }
   };
 
   const copyToClipboard = (text, type) => {
@@ -229,19 +246,35 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
 
   return (
     <div className="h-full flex flex-col bg-white p-4">
-      {/* Current Props Display */}
+      {/* Current Props Display avec bouton Save */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
         <div className="text-blue-700 font-medium text-sm mb-1 flex items-center justify-between">
           <span>
             📋 {t('currentProps')} ({selectedComp.name})
             {selectedComp.template && <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded">{t('hasTemplate')}</span>}
           </span>
-          {hasUnsavedChanges && (
-            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded flex items-center">
-              <span className="w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse"></span>
-              {t('unsavedChanges')}
-            </span>
-          )}
+          <div className="flex items-center space-x-2">
+            {hasUnsavedChanges && (
+              <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded flex items-center">
+                <span className="w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse"></span>
+                {t('unsavedChanges')}
+              </span>
+            )}
+            {/* 🔥 FIX: Bouton Save toujours visible avec état correct */}
+            <button 
+              id="save-code"
+              onClick={saveChanges}
+              disabled={isSaving || !hasUnsavedChanges}
+              className={`px-3 py-1 text-xs rounded flex items-center transition-colors ${
+                hasUnsavedChanges 
+                  ? 'bg-green-600 text-white hover:bg-green-700' 
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              <Save size={12} className="mr-1" />
+              {isSaving ? t('saving') : t('save')}
+            </button>
+          </div>
         </div>
         <div className="text-blue-600 text-xs font-mono">
           {Object.keys(currentProps || {}).length > 0 
@@ -319,7 +352,10 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
             </div>
             <textarea
               value={templateCode}
-              onChange={(e) => setTemplateCode(e.target.value)}
+              onChange={(e) => {
+                console.log('📝 Template changed:', e.target.value.length, 'chars');
+                setTemplateCode(e.target.value);
+              }}
               className="flex-1 w-full p-4 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-900 text-gray-300"
               style={{
                 minHeight: '400px',
@@ -379,7 +415,10 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
             </div>
             <textarea
               value={cssCode}
-              onChange={(e) => setCssCode(e.target.value)}
+              onChange={(e) => {
+                console.log('🎨 CSS changed:', e.target.value.length, 'chars');
+                setCssCode(e.target.value);
+              }}
               className="flex-1 w-full p-4 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-900 text-gray-300"
               style={{
                 minHeight: '400px',

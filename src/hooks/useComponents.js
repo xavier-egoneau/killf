@@ -8,6 +8,7 @@ export const useComponents = () => {
   const [selectedComponent, setSelectedComponent] = useState('button');
   const [currentProps, setCurrentProps] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false); // 🆕
 
   // Charger les composants depuis l'API
   useEffect(() => {
@@ -72,23 +73,19 @@ export const useComponents = () => {
     }
   }, [selectedComponent, components]);
 
+  // 🔥 FIX: Fonction d'ajout avec gestion d'erreur et logging
   const addComponent = async (category, key, component) => {
+    console.log(`🆕 addComponent called:`, { category, key, component: component.name });
+    
     const newComponent = {
       ...component,
       category
     };
 
-    // Mise à jour locale immédiate
-    setComponents(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [key]: newComponent
-      }
-    }));
-
-    // Sauvegarde sur le serveur
     try {
+      // 🔥 FIX: Mise à jour locale APRÈS la sauvegarde réussie sur le serveur
+      console.log('📤 Sending to server:', { category, key, component: newComponent.name });
+      
       const response = await fetch(`${API_BASE}/components/${key}`, {
         method: 'PUT',
         headers: {
@@ -99,82 +96,94 @@ export const useComponents = () => {
           name: newComponent.name,
           category,
           props: newComponent.props,
-          scss: newComponent.scss
+          scss: newComponent.scss,
+          template: newComponent.template // 🆕 Inclure le template dès la création
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save component');
+        const errorData = await response.json();
+        throw new Error(`Server error: ${response.status} - ${errorData.error || 'Unknown error'}`);
       }
+
+      const result = await response.json();
+      console.log(`✅ Component ${key} saved successfully on server:`, result);
+
+      // 🔥 FIX: Mise à jour locale seulement après succès serveur
+      setComponents(prev => ({
+        ...prev,
+        [category]: {
+          ...prev[category],
+          [key]: newComponent
+        }
+      }));
+
+      console.log(`✅ Component ${key} added locally`);
+      return result;
       
-      console.log(`✅ Component ${key} saved successfully`);
-    } catch (err) {
-      console.error('❌ Save error:', err);
+    } catch (error) {
+      console.error('❌ Add component failed:', error);
+      throw error; // Re-throw pour que le caller puisse gérer l'erreur
     }
   };
 
   const removeComponent = async (category, key) => {
-    // Suppression locale
-    setComponents(prev => {
-      const newComponents = { ...prev };
-      if (newComponents[category] && newComponents[category][key]) {
-        delete newComponents[category][key];
-      }
-      return newComponents;
-    });
-
-    // Suppression sur le serveur
+    console.log(`🗑️ removeComponent called:`, { category, key });
+    
     try {
-      await fetch(`${API_BASE}/components/${key}`, {
+      // Suppression sur le serveur d'abord
+      const response = await fetch(`${API_BASE}/components/${key}`, {
         method: 'DELETE'
       });
-      console.log(`✅ Component ${key} deleted`);
-    } catch (err) {
-      console.error('❌ Delete error:', err);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete component on server: ${response.status}`);
+      }
+      
+      console.log(`✅ Component ${key} deleted from server`);
+      
+      // Suppression locale après succès serveur
+      setComponents(prev => {
+        const newComponents = { ...prev };
+        if (newComponents[category] && newComponents[category][key]) {
+          delete newComponents[category][key];
+        }
+        return newComponents;
+      });
+      
+      console.log(`✅ Component ${key} removed locally`);
+      
+    } catch (error) {
+      console.error('❌ Remove component failed:', error);
+      throw error;
     }
   };
 
+  // 🔥 FIX: Fonction updateComponent avec gestion améliorée
   const updateComponent = async (category, key, updates) => {
     console.log('🔄 updateComponent called:', { category, key, updates });
     
     const currentComponent = components[category]?.[key];
     if (!currentComponent) {
       console.error('❌ Component not found:', { category, key });
-      return;
+      throw new Error(`Component ${key} not found in category ${category}`);
     }
 
-    const updated = {
-      ...currentComponent,
-      ...updates
-    };
-
-    // Mise à jour locale immédiate
-    setComponents(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [key]: updated
-      }
-    }));
-
-    // Sauvegarde sur le serveur avec template inclus
     try {
+      // Préparer le payload complet
       const payload = {
         id: key,
-        name: updated.name,
+        name: currentComponent.name,
         category,
-        props: updated.props,
-        scss: updated.scss
+        props: updates.props || currentComponent.props,
+        scss: updates.scss !== undefined ? updates.scss : currentComponent.scss,
+        template: updates.template !== undefined ? updates.template : currentComponent.template
       };
 
-      // Inclure le template s'il existe dans les updates
-      if ('template' in updates) {
-        payload.template = updates.template;
-      }
-
-      console.log('📤 Sending to server:', {
+      console.log('📤 Sending update to server:', {
         ...payload,
-        template: payload.template ? `${payload.template.substring(0, 50)}...` : 'none'
+        template: payload.template ? `${payload.template.substring(0, 50)}...` : 'none',
+        scss: payload.scss ? `${payload.scss.substring(0, 50)}...` : 'none'
       });
 
       const response = await fetch(`${API_BASE}/components/${key}`, {
@@ -191,12 +200,28 @@ export const useComponents = () => {
       }
       
       const result = await response.json();
-      console.log(`✅ Component ${key} updated successfully:`, result);
-      
+      console.log(`✅ Component ${key} updated successfully on server:`, result);
+
+      // 🔥 FIX: Mise à jour locale après succès serveur
+      const updatedComponent = {
+        ...currentComponent,
+        ...updates
+      };
+
+      setComponents(prev => ({
+        ...prev,
+        [category]: {
+          ...prev[category],
+          [key]: updatedComponent
+        }
+      }));
+
+      console.log(`✅ Component ${key} updated locally`);
       return result;
-    } catch (err) {
-      console.error('❌ Update error:', err);
-      throw err; // Re-throw pour que le caller puisse gérer l'erreur
+      
+    } catch (error) {
+      console.error('❌ Update component failed:', error);
+      throw error; // Re-throw pour que le caller puisse gérer l'erreur
     }
   };
 
@@ -249,14 +274,31 @@ export const useComponents = () => {
     addComponent(category, newKey, duplicatedComponent);
   };
 
+  // 🆕 Écouter les événements de création de composants
+  useEffect(() => {
+    const handleComponentCreated = (event) => {
+      const { category, key, component } = event.detail;
+      console.log('🎉 Component created event received:', { category, key, name: component.name });
+      // Le composant est déjà ajouté via addComponent, pas besoin de mise à jour supplémentaire
+    };
+
+    window.addEventListener('componentCreated', handleComponentCreated);
+    
+    return () => {
+      window.removeEventListener('componentCreated', handleComponentCreated);
+    };
+  }, []);
+
   return {
     components,
     selectedComponent,
     currentProps,
     isLoading,
+    hasUnsavedChanges, // 🆕
     setComponents,
     setSelectedComponent,
     setCurrentProps,
+    setHasUnsavedChanges, // 🆕
     getComponent,
     addComponent,
     removeComponent,

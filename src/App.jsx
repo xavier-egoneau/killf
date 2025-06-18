@@ -1,4 +1,4 @@
-// App.jsx - Version avec export CSS
+// App.jsx - Version avec détection améliorée des changements
 import React, { useState, useEffect } from 'react';
 import { Eye, Code, Wand2, Download, Save, FileDown, Package } from 'lucide-react';
 
@@ -19,6 +19,7 @@ function App() {
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [isExportingCSS, setIsExportingCSS] = useState(false);
   const [saveResults, setSaveResults] = useState({});
+  const [componentsUnsavedChanges, setComponentsUnsavedChanges] = useState(false); // 🆕
   
   // i18n hook
   const { t } = useI18n();
@@ -29,6 +30,20 @@ function App() {
 
   const { tokens, hasUnsavedTokenChanges } = tokensHook;
   const { components, selectedComponent, currentProps, updateComponent } = componentsHook;
+
+  // 🆕 Écouter les changements dans les composants via custom events
+  useEffect(() => {
+    const handleComponentChanges = (event) => {
+      console.log('🔄 Component changes detected:', event.detail);
+      setComponentsUnsavedChanges(event.detail.hasChanges);
+    };
+
+    window.addEventListener('componentChanges', handleComponentChanges);
+    
+    return () => {
+      window.removeEventListener('componentChanges', handleComponentChanges);
+    };
+  }, []);
 
   // Écouter les résultats de sauvegarde des tokens
   useEffect(() => {
@@ -61,7 +76,7 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  // 🆕 Nouvelle fonction d'export CSS
+  // Nouvelle fonction d'export CSS
   const handleCSSExport = async (type = 'complete') => {
     setIsExportingCSS(true);
     
@@ -144,6 +159,9 @@ function App() {
           button.textContent = `✅ ${t('allSaved')}`;
           button.style.backgroundColor = '#10b981';
           console.log('✅ Save All completed successfully');
+          
+          // Reset des indicateurs de changements
+          setComponentsUnsavedChanges(false);
         } else {
           button.textContent = `⚠️ ${successes}/${results.length} saved`;
           button.style.backgroundColor = '#f59e0b';
@@ -173,9 +191,18 @@ function App() {
     }
   };
 
-  // Indicateur des changements non sauvegardés
+  // 🔥 FIX: Indicateur des changements non sauvegardés amélioré
   const hasAnyUnsavedChanges = () => {
-    return hasUnsavedTokenChanges; // On peut ajouter d'autres vérifications ici
+    const hasTokenChanges = hasUnsavedTokenChanges;
+    const hasCompChanges = componentsUnsavedChanges;
+    
+    console.log('🔍 Checking unsaved changes:', {
+      tokens: hasTokenChanges,
+      components: hasCompChanges,
+      total: hasTokenChanges || hasCompChanges
+    });
+    
+    return hasTokenChanges || hasCompChanges;
   };
 
   return (
@@ -224,6 +251,9 @@ function App() {
           50% { opacity: 0.5; }
           100% { opacity: 1; }
         }
+        
+        .cssExport .cssExport-dropdown{height: 0;}
+        .cssExport:hover .cssExport-dropdown{height: auto;}
       `}</style>
       
       {/* Sidebar - Panel Left */}
@@ -257,6 +287,8 @@ function App() {
               >
                 <Code size={16} className="mr-2" />
                 {t('code')}
+                {/* 🆕 Indicateur des changements sur l'onglet Code */}
+                {componentsUnsavedChanges && <span className="ml-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>}
               </button>
               <button
                 onClick={() => setActiveTab('ai')}
@@ -271,18 +303,19 @@ function App() {
             
             {/* Status & Actions */}
             <div className="flex items-center space-x-3">
-              {/* Unsaved changes indicator */}
+              {/* Unsaved changes indicator amélioré */}
               {hasAnyUnsavedChanges() && (
                 <div className="flex items-center px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full unsaved-indicator">
                   <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
-                  {t('unsavedChanges')}
+                  {hasUnsavedTokenChanges && componentsUnsavedChanges ? 'Tokens + Code' : 
+                   hasUnsavedTokenChanges ? 'Tokens' : 'Code'} {t('unsavedChanges')}
                 </div>
               )}
               
               {/* Language switcher */}
               <LanguageSwitcher />
               
-              {/* 🆕 CSS Export Dropdown */}
+              {/* CSS Export Dropdown */}
               <div className="relative group cssExport">
                 <button 
                   id="css-export-btn"
@@ -343,7 +376,7 @@ function App() {
                 </div>
               </div>
               
-              {/* Save All button - Always visible but disabled if no changes */}
+              {/* Save All button avec détection améliorée */}
               <button 
                 id="save-all-btn"
                 onClick={handleSaveAll}
@@ -357,11 +390,19 @@ function App() {
               >
                 <Save size={16} className={`mr-2 ${isSavingAll ? 'animate-spin' : ''}`} />
                 {isSavingAll ? t('saving') : t('saveAll')}
-                {hasUnsavedTokenChanges && (
-                  <span className="ml-2 px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">
-                    {t('tokens')}
-                  </span>
-                )}
+                {/* Indicateurs spécifiques */}
+                <div className="ml-2 flex space-x-1">
+                  {hasUnsavedTokenChanges && (
+                    <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">
+                      Tokens
+                    </span>
+                  )}
+                  {componentsUnsavedChanges && (
+                    <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                      Code
+                    </span>
+                  )}
+                </div>
               </button>
               
               {/* Export AI button */}
@@ -375,18 +416,24 @@ function App() {
             </div>
           </div>
           
-          {/* Save status bar */}
-          {Object.keys(saveResults).length > 0 && (
+          {/* Save status bar amélioré */}
+          {(Object.keys(saveResults).length > 0 || hasAnyUnsavedChanges()) && (
             <div className="mt-3 p-2 bg-gray-50 rounded-lg">
               <div className="text-xs text-gray-600 flex items-center justify-between">
-                <span>Save Status:</span>
+                <span>
+                  Status: {hasAnyUnsavedChanges() ? 'Modifications en attente' : 'Tout sauvegardé'}
+                </span>
                 <div className="flex space-x-4">
                   {saveResults.tokens && (
                     <span className={`flex items-center ${saveResults.tokens.success ? 'text-green-600' : 'text-red-600'}`}>
                       {saveResults.tokens.success ? '✅' : '❌'} Design Tokens
                     </span>
                   )}
-                  {/* Ici on pourrait ajouter d'autres statuts de sauvegarde */}
+                  {componentsUnsavedChanges && (
+                    <span className="flex items-center text-orange-600">
+                      ⏳ Components en attente
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

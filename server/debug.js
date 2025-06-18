@@ -1,74 +1,147 @@
-// debug.js - Test script pour vérifier le serveur
-const API_BASE = 'http://localhost:3001/api';
+// server/debug.js - Script de test et debug du serveur
+import pkg from 'sqlite3';
+const { Database } = pkg.verbose();
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
 
-async function testServer() {
-  console.log('🔍 Testing server connection...\n');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-  try {
-    // Test 1: Health check
-    console.log('1. Health check...');
-    const healthResponse = await fetch(`${API_BASE}/health`);
-    const healthData = await healthResponse.json();
-    console.log('✅ Health:', healthData);
-    
-    // Test 2: Get all components
-    console.log('\n2. Getting all components...');
-    const componentsResponse = await fetch(`${API_BASE}/components`);
-    const componentsData = await componentsResponse.json();
-    console.log('✅ Components loaded:', Object.keys(componentsData));
-    
-    // Test 3: Test saving a component
-    console.log('\n3. Testing component save...');
-    const testComponent = {
-      id: 'test-button',
-      name: 'Test Button',
-      category: 'atoms',
-      props: {
-        variant: { type: 'select', options: ['primary', 'secondary'], default: 'primary' },
-        text: { type: 'string', default: 'Test' }
-      },
-      scss: '.test-button { background: red; }'
-    };
-    
-    const saveResponse = await fetch(`${API_BASE}/components/test-button`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(testComponent)
-    });
-    
-    const saveData = await saveResponse.json();
-    console.log('✅ Save result:', saveData);
-    
-    // Test 4: Verify save
-    console.log('\n4. Verifying save...');
-    const verifyResponse = await fetch(`${API_BASE}/components/test-button`);
-    const verifyData = await verifyResponse.json();
-    console.log('✅ Saved component:', verifyData);
-    
-    // Test 5: Delete test component
-    console.log('\n5. Cleaning up...');
-    const deleteResponse = await fetch(`${API_BASE}/components/test-button`, {
-      method: 'DELETE'
-    });
-    const deleteData = await deleteResponse.json();
-    console.log('✅ Delete result:', deleteData);
-    
-    console.log('\n🎉 All tests passed! Server is working correctly.');
-    
-  } catch (error) {
-    console.error('❌ Test failed:', error.message);
-    console.log('\n🔧 Troubleshooting steps:');
-    console.log('1. Make sure the server is running: node server.js');
-    console.log('2. Check that port 3001 is available');
-    console.log('3. Verify database permissions');
+console.log('🔍 Design System Server Debug Tool');
+console.log('===================================\n');
+
+// Test 1: Vérifier le chemin de la base de données
+const dbPath = path.join(__dirname, 'design.db');
+console.log('📂 Database path:', dbPath);
+console.log('📁 Database exists:', fs.existsSync(dbPath));
+
+if (fs.existsSync(dbPath)) {
+  const stats = fs.statSync(dbPath);
+  console.log('📊 Database size:', (stats.size / 1024).toFixed(2), 'KB');
+  console.log('📅 Last modified:', stats.mtime.toISOString());
+}
+
+console.log('\n');
+
+// Test 2: Connexion à la base de données
+const db = new Database(dbPath, (err) => {
+  if (err) {
+    console.error('❌ Database connection failed:', err.message);
+    process.exit(1);
   }
+  console.log('✅ Database connection successful');
+  
+  // Test 3: Vérifier les tables
+  db.all("SELECT name FROM sqlite_master WHERE type='table'", (err, tables) => {
+    if (err) {
+      console.error('❌ Failed to fetch tables:', err);
+      return;
+    }
+    
+    console.log('\n📋 Available tables:');
+    tables.forEach(table => {
+      console.log(`  - ${table.name}`);
+    });
+    
+    // Test 4: Vérifier la structure de la table components
+    if (tables.some(t => t.name === 'components')) {
+      console.log('\n🔍 Components table structure:');
+      db.all("PRAGMA table_info(components)", (err, columns) => {
+        if (err) {
+          console.error('❌ Failed to get table info:', err);
+          return;
+        }
+        
+        columns.forEach(col => {
+          console.log(`  - ${col.name}: ${col.type} ${col.notnull ? '(NOT NULL)' : ''} ${col.pk ? '(PRIMARY KEY)' : ''}`);
+        });
+        
+        // Test 5: Compter les composants
+        db.get("SELECT COUNT(*) as count FROM components", (err, row) => {
+          if (err) {
+            console.error('❌ Failed to count components:', err);
+            return;
+          }
+          
+          console.log(`\n📊 Total components: ${row.count}`);
+          
+          if (row.count > 0) {
+            // Afficher les composants existants
+            db.all("SELECT id, name, category, LENGTH(template) as template_length, LENGTH(scss) as scss_length FROM components", (err, components) => {
+              if (err) {
+                console.error('❌ Failed to fetch components:', err);
+                return;
+              }
+              
+              console.log('\n📝 Existing components:');
+              components.forEach(comp => {
+                console.log(`  - ${comp.id} (${comp.name}) [${comp.category}]`);
+                console.log(`    Template: ${comp.template_length || 0} chars, CSS: ${comp.scss_length || 0} chars`);
+              });
+              
+              checkTokensAndExit();
+            });
+          } else {
+            checkTokensAndExit();
+          }
+        });
+      });
+    } else {
+      console.log('\n⚠️ Components table not found');
+      checkTokensAndExit();
+    }
+  });
+});
+
+function checkTokensAndExit() {
+  // Test 6: Vérifier les tokens (vérifier d'abord si la table existe)
+  db.all("SELECT name FROM sqlite_master WHERE type='table' AND name='tokens'", (err, tables) => {
+    if (err) {
+      console.error('❌ Failed to check tokens table:', err);
+      closeAndExit();
+      return;
+    }
+    
+    if (tables.length > 0) {
+      db.get("SELECT COUNT(*) as count FROM tokens", (err, row) => {
+        if (err) {
+          console.error('❌ Failed to count tokens:', err);
+        } else {
+          console.log(`\n📊 Total tokens: ${row.count}`);
+        }
+        closeAndExit();
+      });
+    } else {
+      console.log('\n⚠️ Tokens table not found');
+      closeAndExit();
+    }
+  });
 }
 
-// Run the test if this script is executed directly
-if (typeof window === 'undefined') {
-  testServer();
+function closeAndExit() {
+  console.log('\n🔄 Closing database connection...');
+  db.close((err) => {
+    if (err) {
+      console.error('❌ Error closing database:', err.message);
+    } else {
+      console.log('✅ Database connection closed');
+    }
+    
+    console.log('\n🎯 Debug completed!');
+    console.log('💡 To start the server: npm run dev');
+    console.log('🌐 Health check: http://localhost:3001/api/health');
+    process.exit(0);
+  });
 }
 
-export { testServer };
+// Gestion des erreurs
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});

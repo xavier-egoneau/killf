@@ -1,17 +1,30 @@
 {
-  "name": "design-backend",
-  "type": "module",
+  "name": "design-system-server",
   "version": "1.0.0",
+  "description": "Backend server for Design System Builder",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node debug.js",
+    "debug": "node debug.js",
+    "fix-db": "node fix-database.js",
     "db:reset": "rm -f design.db && node server.js"
   },
   "dependencies": {
-    "better-sqlite3": "^9.0.0",
-    "cors": "^2.8.5",
-    "express": "^4.18.2"
-  }
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "express",
+    "sqlite",
+    "design-system",
+    "api"
+  ],
+  "author": "Design System Builder",
+  "license": "MIT"
 }
