@@ -166,7 +166,6 @@ const translations = {
     size: 'Size',
     text: 'Text',
     disabled: 'Disabled',
-    loading: 'Loading',
     title: 'Title',
     content: 'Content',
     
@@ -247,7 +246,6 @@ const translations = {
     refresh: 'Actualiser',
     openInNewWindow: 'Ouvrir dans une nouvelle fenêtre',
     openExternal: 'Ouvrir en Externe',
-    loading: 'Chargement',
     mobileView: 'Vue Mobile',
     tabletView: 'Vue Tablette',
     desktopView: 'Vue Bureau',

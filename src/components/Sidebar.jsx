@@ -1,4 +1,4 @@
-// components/Sidebar.jsx - Version avec tous les tokens
+// components/Sidebar.jsx - Version sans sélecteur spacing preset
 import React, { useState } from 'react';
 import { 
   ChevronRight, 
@@ -15,7 +15,7 @@ import {
   Minus
 } from 'lucide-react';
 import { componentCategories } from '../data';
-import { frameworkOptions, iconSetOptions, spacingPresets, fontPresets } from '../data/tokens';
+import { frameworkOptions, iconSetOptions, fontPresets } from '../data/tokens';
 import { useI18n } from '../hooks/useI18n';
 
 const Sidebar = ({ tokensHook, componentsHook }) => {
@@ -52,12 +52,12 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
     updateBrandingToken,
     updateIconsToken,
     updateFrameworkToken,
-    applySpacingPreset,
     applyFontPreset,
     addColorToken,
     removeColorToken,
     addSpacingToken,
-    removeSpacingToken
+    removeSpacingToken,
+    getCurrentSpacingPreset // 🆕 Nouvelle fonction
   } = tokensHook;
   
   const { components, selectedComponent, setSelectedComponent, addComponent, removeComponent } = componentsHook;
@@ -386,7 +386,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                 )}
               </div>
 
-              {/* Spacing Section */}
+              {/* Spacing Section - 🆕 Sans sélecteur preset, avec indicateur automatique */}
               <div>
                 <button 
                   onClick={() => toggleSection('spacing')}
@@ -399,19 +399,14 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                 
                 {expandedSections.spacing && (
                   <div className="mt-2 ml-4 space-y-3">
-                    {/* Spacing Presets */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Spacing Preset</label>
-                      <select
-                        onChange={(e) => e.target.value && applySpacingPreset(e.target.value)}
-                        className="w-full text-xs border rounded px-2 py-1"
-                        defaultValue=""
-                      >
-                        <option value="">Choose preset...</option>
-                        {Object.keys(spacingPresets).map(key => (
-                          <option key={key} value={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</option>
-                        ))}
-                      </select>
+                    {/* 🆕 Indicateur du preset automatique appliqué */}
+                    <div className="p-2 bg-blue-50 border border-blue-200 rounded">
+                      <div className="text-xs font-medium text-blue-700 mb-1">
+                        🔄 Auto-Applied Preset
+                      </div>
+                      <div className="text-xs text-blue-600">
+                        Using <strong>{getCurrentSpacingPreset()}</strong> spacing from {tokens.framework.type} framework
+                      </div>
                     </div>
                     
                     {/* Spacing values */}
@@ -537,7 +532,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                 )}
               </div>
 
-              {/* Icons Section */}
+              {/* Icons Section - 🆕 Avec Material Icons */}
               <div>
                 <button 
                   onClick={() => toggleSection('icons')}
@@ -583,6 +578,13 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                       <div className="text-xs text-gray-500">
                         <div><strong>Name:</strong> {iconSetOptions[tokens.icons.set]?.name}</div>
                         <div><strong>Prefix:</strong> {iconSetOptions[tokens.icons.set]?.prefix}</div>
+                        {iconSetOptions[tokens.icons.set]?.usage && (
+                          <div className="mt-1"><strong>Usage:</strong><br/>
+                            <code className="text-xs bg-gray-200 px-1 rounded">
+                              {iconSetOptions[tokens.icons.set].usage}
+                            </code>
+                          </div>
+                        )}
                         <div><strong>URL:</strong> 
                           <a 
                             href={iconSetOptions[tokens.icons.set]?.url} 
@@ -599,7 +601,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                 )}
               </div>
 
-              {/* Framework Section */}
+              {/* Framework Section - 🆕 Avec indication du spacing automatique */}
               <div>
                 <button 
                   onClick={() => toggleSection('framework')}
@@ -655,6 +657,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                         <div><strong>Type:</strong> {frameworkOptions[tokens.framework.type]?.utilityBased ? 'Utility-based' : 'Component-based'}</div>
                         <div><strong>CSS Prefix:</strong> {frameworkOptions[tokens.framework.type]?.cssPrefix || 'None'}</div>
                         <div><strong>Current:</strong> {frameworkOptions[tokens.framework.type]?.name} {tokens.framework.version}</div>
+                        <div><strong>Auto Spacing:</strong> <span className="text-green-600">{frameworkOptions[tokens.framework.type]?.spacingPreset}</span></div>
                       </div>
                     </div>
                   </div>

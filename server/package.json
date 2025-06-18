@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node debug.js",
+    "db:reset": "rm -f design.db && node server.js"
   },
   "dependencies": {
     "better-sqlite3": "^9.0.0",

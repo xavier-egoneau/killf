@@ -4,10 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:css\"",
+    "dev:frontend": "vite",
+    "dev:backend": "cd server && node server.js",
+    "dev:css": "npx tailwindcss -i ./src/input.css -o ./src/output.css --watch",
+    "build": "npm run build:css && vite build",
+    "build:css": "npx tailwindcss -i ./src/input.css -o ./src/output.css --minify",
+    "start": "concurrently \"npm run start:backend\" \"npm run preview\"",
+    "start:backend": "cd server && node server.js",
+    "preview": "vite preview",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "test:server": "cd server && node debug.js"
   },
   "dependencies": {
     "@tailwindcss/cli": "^4.1.10",
@@ -23,6 +30,7 @@
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^9.8.8",
+    "concurrently": "^8.2.2",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",

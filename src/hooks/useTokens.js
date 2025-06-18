@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { defaultTokens, spacingPresets, fontPresets } from '../data/tokens';
+import { defaultTokens, spacingPresets, fontPresets, frameworkOptions } from '../data/tokens';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -187,17 +187,34 @@ export const useTokens = () => {
     }));
   };
 
+  // 🆕 Framework token avec application automatique du spacing
   const updateFrameworkToken = (frameworkKey, value) => {
-    setTokens(prev => ({
-      ...prev,
-      framework: {
-        ...prev.framework,
-        [frameworkKey]: value
+    setTokens(prev => {
+      const newTokens = {
+        ...prev,
+        framework: {
+          ...prev.framework,
+          [frameworkKey]: value
+        }
+      };
+
+      // 🚀 Application automatique du spacing preset quand le framework change
+      if (frameworkKey === 'type') {
+        const frameworkConfig = frameworkOptions[value];
+        if (frameworkConfig && frameworkConfig.spacingPreset) {
+          const spacingPreset = spacingPresets[frameworkConfig.spacingPreset];
+          if (spacingPreset) {
+            console.log(`🔄 Auto-applying ${frameworkConfig.spacingPreset} spacing preset for ${value}`);
+            newTokens.spacing = { ...spacingPreset };
+          }
+        }
       }
-    }));
+
+      return newTokens;
+    });
   };
 
-  // Applique un preset de spacing
+  // Applique un preset de spacing (maintenu pour compatibilité, mais plus utilisé dans l'UI)
   const applySpacingPreset = (presetName) => {
     const preset = spacingPresets[presetName];
     if (preset) {
@@ -296,6 +313,12 @@ export const useTokens = () => {
     return current;
   };
 
+  // 🆕 Obtenir le preset de spacing pour le framework actuel
+  const getCurrentSpacingPreset = () => {
+    const frameworkConfig = frameworkOptions[tokens.framework.type];
+    return frameworkConfig?.spacingPreset || 'custom';
+  };
+
   return {
     tokens,
     originalTokens,
@@ -317,6 +340,7 @@ export const useTokens = () => {
     removeSpacingToken,
     resetTokens,
     getTokenValue,
-    saveTokens
+    saveTokens,
+    getCurrentSpacingPreset // 🆕 Nouvelle fonction
   };
 };

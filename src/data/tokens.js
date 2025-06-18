@@ -28,7 +28,7 @@ export const defaultTokens = {
     brandName: 'My Brand'
   },
   icons: {
-    set: 'lucide', // lucide, heroicons, feather, fontawesome
+    set: 'lucide', // lucide, heroicons, feather, fontawesome, material, tabler
     size: '1rem'
   },
   framework: {
@@ -44,28 +44,32 @@ export const frameworkOptions = {
     versions: ['3.x', '4.x'],
     cssPrefix: '',
     utilityBased: true,
-    description: 'Utility-first CSS framework'
+    description: 'Utility-first CSS framework',
+    spacingPreset: 'tailwind' // 🆕 Mapping automatique
   },
   bootstrap: {
     name: 'Bootstrap',
     versions: ['5.x', '4.x'],
     cssPrefix: 'bs-',
     utilityBased: false,
-    description: 'Component-based CSS framework'
+    description: 'Component-based CSS framework',
+    spacingPreset: 'bootstrap' // 🆕 Mapping automatique
   },
   angular: {
     name: 'Angular Material',
     versions: ['17.x', '16.x'],
     cssPrefix: 'mat-',
     utilityBased: false,
-    description: 'Angular Material Design components'
+    description: 'Angular Material Design components',
+    spacingPreset: 'material' // 🆕 Mapping automatique
   },
   vanilla: {
     name: 'Vanilla CSS',
     versions: ['CSS3'],
     cssPrefix: '',
     utilityBased: false,
-    description: 'Pure CSS without framework'
+    description: 'Pure CSS without framework',
+    spacingPreset: 'custom' // 🆕 Mapping automatique
   }
 };
 
@@ -75,31 +79,44 @@ export const iconSetOptions = {
     name: 'Lucide',
     description: 'Beautiful & consistent icon toolkit',
     url: 'https://lucide.dev',
-    prefix: 'lucide-'
+    prefix: 'lucide-',
+    cdnUrl: 'https://unpkg.com/lucide@latest/dist/umd/lucide.js'
   },
   heroicons: {
     name: 'Heroicons',
     description: 'Beautiful hand-crafted SVG icons',
     url: 'https://heroicons.com',
-    prefix: 'hero-'
+    prefix: 'hero-',
+    cdnUrl: 'https://cdn.jsdelivr.net/npm/heroicons@2.0.18/24/outline/index.js'
   },
   feather: {
     name: 'Feather',
     description: 'Simply beautiful open source icons',
     url: 'https://feathericons.com',
-    prefix: 'feather-'
+    prefix: 'feather-',
+    cdnUrl: 'https://unpkg.com/feather-icons@4.29.0/dist/feather.min.js'
   },
   fontawesome: {
     name: 'Font Awesome',
     description: 'The web\'s most popular icon set',
     url: 'https://fontawesome.com',
-    prefix: 'fa-'
+    prefix: 'fa-',
+    cdnUrl: 'https://kit.fontawesome.com/your-kit-id.js'
+  },
+  material: {
+    name: 'Material Icons', // 🆕 Nouvel ajout
+    description: 'Google\'s Material Design icon set',
+    url: 'https://fonts.google.com/icons',
+    prefix: 'material-icons',
+    cdnUrl: 'https://fonts.googleapis.com/icon?family=Material+Icons',
+    usage: 'Use class "material-icons" with icon name: <span class="material-icons">home</span>'
   },
   tabler: {
     name: 'Tabler Icons',
     description: 'Free and open source icons',
     url: 'https://tablericons.com',
-    prefix: 'tabler-'
+    prefix: 'tabler-',
+    cdnUrl: 'https://cdn.jsdelivr.net/npm/@tabler/icons@latest/icons-sprite.svg'
   }
 };
 
