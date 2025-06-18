@@ -26,7 +26,7 @@ try {
   db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL');
 
-  // Nouveau schéma avec template au lieu de html
+  // Table des composants
   db.exec(`CREATE TABLE IF NOT EXISTS components (
     id TEXT PRIMARY KEY,
     category TEXT NOT NULL,
@@ -38,9 +38,16 @@ try {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );`);
 
+  // Nouvelle table pour les design tokens
+  db.exec(`CREATE TABLE IF NOT EXISTS design_tokens (
+  id INTEGER PRIMARY KEY,
+  tokens TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);`);
+
   // Migration : remplacer html par template
   try {
-    // Vérifier si la colonne template existe
     const pragma = db.prepare("PRAGMA table_info(components)").all();
     const hasTemplate = pragma.some(col => col.name === 'template');
     
@@ -68,6 +75,8 @@ try {
   process.exit(1);
 }
 
+// ========== ENDPOINTS COMPONENTS ==========
+
 // GET all components
 app.get('/api/components', (req, res) => {
   try {
@@ -83,7 +92,7 @@ app.get('/api/components', (req, res) => {
           name: row.name,
           props: JSON.parse(row.props || '{}'),
           scss: row.scss || '',
-          template: row.template || null, // Template HTML avec placeholders
+          template: row.template || null,
           category: row.category
         };
       } catch (parseError) {
@@ -151,7 +160,7 @@ app.put('/api/components/:id', (req, res) => {
     
     const propsJson = JSON.stringify(props);
     const scssValue = scss || '';
-    const templateValue = template || null; // Template avec placeholders
+    const templateValue = template || null;
     
     console.log(`💾 Saving component ${id}:`, {
       name,
@@ -213,18 +222,99 @@ app.delete('/api/components/:id', (req, res) => {
   }
 });
 
-// GET health check
+// ========== ENDPOINTS DESIGN TOKENS ==========
+
+
+
+
+// ========== ENDPOINTS SYSTÈME ==========
+
+// GET design tokens
+app.get('/api/tokens', (req, res) => {
+  try {
+    const stmt = db.prepare('SELECT tokens FROM design_tokens ORDER BY updated_at DESC LIMIT 1');
+    const row = stmt.get();
+    
+    if (!row) {
+      console.log('📋 No tokens found in database, returning empty object');
+      return res.json({});
+    }
+    
+    const tokens = JSON.parse(row.tokens);
+    console.log('✅ Returning latest design tokens');
+    res.json(tokens);
+  } catch (error) {
+    console.error('❌ Error fetching tokens:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT design tokens (create or update)
+app.put('/api/tokens', (req, res) => {
+  try {
+    const tokens = req.body;
+    
+    // Validation
+    if (!tokens || typeof tokens !== 'object') {
+      return res.status(400).json({ error: 'Invalid tokens data' });
+    }
+    
+    const tokensJson = JSON.stringify(tokens);
+    
+    console.log('💾 Saving design tokens:', {
+      hasColors: !!tokens.colors,
+      hasSpacing: !!tokens.spacing,
+      hasTypography: !!tokens.typography,
+      hasBranding: !!tokens.branding,
+      hasIcons: !!tokens.icons,
+      hasFramework: !!tokens.framework,
+      dataLength: tokensJson.length
+    });
+    
+    // Supprimer les anciens tokens et insérer les nouveaux
+    const deleteStmt = db.prepare('DELETE FROM design_tokens');
+    const insertStmt = db.prepare(`
+      INSERT INTO design_tokens (tokens, updated_at)
+      VALUES (?, CURRENT_TIMESTAMP)
+    `);
+    
+    // Transaction pour assurer la cohérence
+    const transaction = db.transaction(() => {
+      deleteStmt.run();
+      return insertStmt.run(tokensJson);
+    });
+    
+    const result = transaction();
+    
+    console.log('✅ Design tokens saved successfully');
+    
+    res.json({ 
+      status: 'ok', 
+      message: 'Design tokens saved successfully',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error saving tokens:', error);
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
+  }
+});
+
+// 3. Mettre à jour le health check pour inclure les tokens :
 app.get('/api/health', (req, res) => {
   try {
-    // Test database connection
-    const stmt = db.prepare('SELECT COUNT(*) as count FROM components');
-    const result = stmt.get();
+    const componentsStmt = db.prepare('SELECT COUNT(*) as count FROM components');
+    const componentsResult = componentsStmt.get();
+    
+    const tokensStmt = db.prepare('SELECT COUNT(*) as count FROM design_tokens');
+    const tokensResult = tokensStmt.get();
     
     res.json({ 
       status: 'ok', 
       timestamp: new Date().toISOString(),
       database: 'connected',
-      components_count: result.count
+      components_count: componentsResult.count,
+      tokens_saved: tokensResult.count > 0
     });
   } catch (error) {
     console.error('❌ Health check failed:', error);
@@ -239,13 +329,17 @@ app.get('/api/health', (req, res) => {
 // GET database info (debug endpoint)
 app.get('/api/debug', (req, res) => {
   try {
-    const stmt = db.prepare('SELECT id, category, name, LENGTH(scss) as scss_length, LENGTH(template) as template_length, template IS NOT NULL as has_template FROM components ORDER BY category, name');
-    const components = stmt.all();
+    const componentsStmt = db.prepare('SELECT id, category, name, LENGTH(scss) as scss_length, LENGTH(template) as template_length, template IS NOT NULL as has_template FROM components ORDER BY category, name');
+    const components = componentsStmt.all();
+    
+    const tokensStmt = db.prepare('SELECT LENGTH(tokens) as tokens_length, updated_at FROM design_tokens ORDER BY updated_at DESC LIMIT 1');
+    const tokensInfo = tokensStmt.get();
     
     res.json({
       total_components: components.length,
       components: components,
-      categories: [...new Set(components.map(c => c.category))]
+      categories: [...new Set(components.map(c => c.category))],
+      tokens_info: tokensInfo || { tokens_length: 0, updated_at: null }
     });
   } catch (error) {
     console.error('❌ Debug endpoint failed:', error);
@@ -290,4 +384,5 @@ app.listen(PORT, () => {
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🔍 Debug info: http://localhost:${PORT}/api/debug`);
   console.log(`💾 Database: ${DB_PATH}`);
+  console.log(`🎨 Design tokens: http://localhost:${PORT}/api/tokens`);
 });

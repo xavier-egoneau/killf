@@ -12,13 +12,81 @@ const translations = {
     saveAll: 'Save All',
     saving: 'Saving...',
     
-    // Sidebar
+    // Sidebar & Design Tokens
     designTokens: 'Design Tokens',
     addDesignToken: 'Add Design Token',
+    
+    // Colors
+    colors: 'Colors',
     primaryColor: 'Primary Color',
     secondaryColor: 'Secondary Color',
     successColor: 'Success Color',
     dangerColor: 'Danger Color',
+    addColor: 'Add Color',
+    removeColor: 'Remove Color',
+    
+    // Typography
+    typography: 'Typography',
+    fontPreset: 'Font Preset',
+    primaryFont: 'Primary Font',
+    secondaryFont: 'Secondary Font',
+    fontSize: 'Font Size',
+    
+    // Spacing
+    spacing: 'Spacing',
+    spacingPreset: 'Spacing Preset',
+    addSpacing: 'Add Spacing',
+    removeSpacing: 'Remove Spacing',
+    
+    // Branding
+    branding: 'Branding',
+    brandName: 'Brand Name',
+    logoUrl: 'Logo URL',
+    logoAlt: 'Logo Alt Text',
+    logoPreview: 'Logo Preview',
+    
+    // Icons
+    icons: 'Icons',
+    iconSet: 'Icon Set',
+    iconSize: 'Icon Size',
+    defaultSize: 'Default Size',
+    iconSetInfo: 'Icon Set Info',
+    
+    // Framework
+    framework: 'Framework',
+    cssFramework: 'CSS Framework',
+    frameworkVersion: 'Framework Version',
+    frameworkInfo: 'Framework Info',
+    utilityBased: 'Utility-based',
+    componentBased: 'Component-based',
+    cssPrefix: 'CSS Prefix',
+    current: 'Current',
+    
+    // Preview System
+    refresh: 'Refresh',
+    openInNewWindow: 'Open in new window',
+    openExternal: 'Open External',
+    loading: 'Loading',
+    mobileView: 'Mobile View',
+    tabletView: 'Tablet View',
+    desktopView: 'Desktop View',
+    shareComponent: 'Share Component',
+    copyShareURL: 'Copy Share URL',
+    previewMode: 'Preview Mode',
+    componentPreview: 'Component Preview',
+    frameworkLoaded: 'Framework loaded',
+    frameworkError: 'Framework loading error',
+    noFramework: 'No framework selected',
+    viewport: 'Viewport',
+    responsive: 'Responsive',
+    fixedWidth: 'Fixed Width',
+    noTemplate: 'No template defined',
+    templateError: 'Template rendering error',
+    propsError: 'Props validation error',
+    renderingComponent: 'Rendering component...',
+    openedInNewTab: 'Opened in new tab',
+    shareURLCopied: 'Share URL copied to clipboard',
+    previewLinkGenerated: 'Preview link generated',
     
     // Component Categories
     atoms: 'Atoms',
@@ -72,13 +140,11 @@ const translations = {
     noTemplateForComponent: 'No template defined for this component',
     templateValidationFailed: 'Template validation failed',
     
-    // Add Component
+    // Add/Delete Components
     addComponent: 'Add Component',
     enterComponentName: 'Enter new {category} component name:',
     enterNewTokenName: 'Enter new token name',
     enterTokenValue: 'Enter token value',
-    
-    // Delete Component
     deleteComponent: 'Delete Component',
     deleteConfirmation: 'Are you sure you want to delete "{name}"? This action cannot be undone.',
     cancel: 'Cancel',
@@ -95,7 +161,7 @@ const translations = {
     saveFailed: 'Save Failed',
     error: 'Error',
     
-    // Component Types & Props
+    // Component Props
     variant: 'Variant',
     size: 'Size',
     text: 'Text',
@@ -104,10 +170,16 @@ const translations = {
     title: 'Title',
     content: 'Content',
     
-    // Language Switcher
+    // Language & Forms
     language: 'Language',
     english: 'English',
-    french: 'Français'
+    french: 'Français',
+    name: 'Name',
+    value: 'Value',
+    placeholder: 'Placeholder',
+    description: 'Description',
+    choosePreset: 'Choose preset...',
+    visit: 'Visit'
   },
   
   fr: {
@@ -121,13 +193,81 @@ const translations = {
     saveAll: 'Tout Sauvegarder',
     saving: 'Sauvegarde...',
     
-    // Sidebar
+    // Sidebar & Design Tokens
     designTokens: 'Tokens de Design',
     addDesignToken: 'Ajouter un Token',
+    
+    // Colors
+    colors: 'Couleurs',
     primaryColor: 'Couleur Primaire',
     secondaryColor: 'Couleur Secondaire',
     successColor: 'Couleur de Succès',
     dangerColor: 'Couleur de Danger',
+    addColor: 'Ajouter une Couleur',
+    removeColor: 'Supprimer la Couleur',
+    
+    // Typography
+    typography: 'Typographie',
+    fontPreset: 'Preset de Police',
+    primaryFont: 'Police Primaire',
+    secondaryFont: 'Police Secondaire',
+    fontSize: 'Taille de Police',
+    
+    // Spacing
+    spacing: 'Espacement',
+    spacingPreset: 'Preset d\'Espacement',
+    addSpacing: 'Ajouter un Espacement',
+    removeSpacing: 'Supprimer l\'Espacement',
+    
+    // Branding
+    branding: 'Image de Marque',
+    brandName: 'Nom de Marque',
+    logoUrl: 'URL du Logo',
+    logoAlt: 'Texte Alt du Logo',
+    logoPreview: 'Aperçu du Logo',
+    
+    // Icons
+    icons: 'Icônes',
+    iconSet: 'Set d\'Icônes',
+    iconSize: 'Taille d\'Icône',
+    defaultSize: 'Taille par Défaut',
+    iconSetInfo: 'Info du Set d\'Icônes',
+    
+    // Framework
+    framework: 'Framework',
+    cssFramework: 'Framework CSS',
+    frameworkVersion: 'Version du Framework',
+    frameworkInfo: 'Info du Framework',
+    utilityBased: 'Basé sur les utilitaires',
+    componentBased: 'Basé sur les composants',
+    cssPrefix: 'Préfixe CSS',
+    current: 'Actuel',
+    
+    // Preview System
+    refresh: 'Actualiser',
+    openInNewWindow: 'Ouvrir dans une nouvelle fenêtre',
+    openExternal: 'Ouvrir en Externe',
+    loading: 'Chargement',
+    mobileView: 'Vue Mobile',
+    tabletView: 'Vue Tablette',
+    desktopView: 'Vue Bureau',
+    shareComponent: 'Partager le Composant',
+    copyShareURL: 'Copier l\'URL de Partage',
+    previewMode: 'Mode Aperçu',
+    componentPreview: 'Aperçu du Composant',
+    frameworkLoaded: 'Framework chargé',
+    frameworkError: 'Erreur de chargement du framework',
+    noFramework: 'Aucun framework sélectionné',
+    viewport: 'Viewport',
+    responsive: 'Responsif',
+    fixedWidth: 'Largeur Fixe',
+    noTemplate: 'Aucun modèle défini',
+    templateError: 'Erreur de rendu du modèle',
+    propsError: 'Erreur de validation des propriétés',
+    renderingComponent: 'Rendu du composant...',
+    openedInNewTab: 'Ouvert dans un nouvel onglet',
+    shareURLCopied: 'URL de partage copiée dans le presse-papiers',
+    previewLinkGenerated: 'Lien d\'aperçu généré',
     
     // Component Categories
     atoms: 'Atomes',
@@ -181,13 +321,11 @@ const translations = {
     noTemplateForComponent: 'Aucun modèle défini pour ce composant',
     templateValidationFailed: 'La validation du modèle a échoué',
     
-    // Add Component
+    // Add/Delete Components
     addComponent: 'Ajouter un Composant',
     enterComponentName: 'Entrez le nom du nouveau composant {category} :',
     enterNewTokenName: 'Entrez le nom du nouveau token',
     enterTokenValue: 'Entrez la valeur du token',
-    
-    // Delete Component
     deleteComponent: 'Supprimer le Composant',
     deleteConfirmation: 'Êtes-vous sûr de vouloir supprimer "{name}" ? Cette action ne peut pas être annulée.',
     cancel: 'Annuler',
@@ -204,7 +342,7 @@ const translations = {
     saveFailed: 'Échec de la Sauvegarde',
     error: 'Erreur',
     
-    // Component Types & Props
+    // Component Props
     variant: 'Variante',
     size: 'Taille',
     text: 'Texte',
@@ -213,10 +351,16 @@ const translations = {
     title: 'Titre',
     content: 'Contenu',
     
-    // Language Switcher
+    // Language & Forms
     language: 'Langue',
     english: 'English',
-    french: 'Français'
+    french: 'Français',
+    name: 'Nom',
+    value: 'Valeur',
+    placeholder: 'Placeholder',
+    description: 'Description',
+    choosePreset: 'Choisir un preset...',
+    visit: 'Visiter'
   }
 };
 

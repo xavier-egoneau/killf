@@ -1,124 +1,26 @@
-// components/VisualTab.jsx - Version avec PreviewFrame complet
+// components/PreviewFrame.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { ExternalLink, Maximize2, Smartphone, Tablet, Monitor, RefreshCw } from 'lucide-react';
 import { useI18n } from '../hooks/useI18n';
 import { renderTemplate } from '../utils/templateEngine';
 
-const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
+const PreviewFrame = ({ tokens, component, currentProps, selectedComponent }) => {
   const { t } = useI18n();
   const iframeRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
   const [viewportSize, setViewportSize] = useState('desktop');
   const [lastUpdate, setLastUpdate] = useState(Date.now());
-  const [iframeHeight, setIframeHeight] = useState('auto');
-  
-  const getComponent = (componentPath) => {
-    if (!componentPath) return null;
-    
-    if (componentPath.includes('.')) {
-      const [category, key] = componentPath.split('.');
-      return components[category] && components[category][key] ? components[category][key] : null;
-    }
-    return components.atoms?.[componentPath] || components.molecules?.[componentPath] || null;
-  };
-
-  const selectedComp = getComponent(selectedComponent);
-
-  // Déterminer la hauteur optimale basée sur le type de composant
-  const getOptimalHeight = () => {
-    if (!selectedComp) return '400px';
-    
-    const componentType = selectedComp.category;
-    const componentName = selectedComp.name.toLowerCase();
-    
-    // Heights par type de composant
-    const heightMap = {
-      // Atoms - petits composants
-      atoms: '200px',
-      
-      // Molecules - composants moyens
-      molecules: componentName.includes('card') ? '300px' : '250px',
-      
-      // Organisms - grands composants
-      organisms: {
-        navbar: '120px',
-        header: '200px',
-        footer: '150px',
-        sidebar: '400px',
-        default: '350px'
-      },
-      
-      // Templates et Pages - pleine hauteur
-      templates: '600px',
-      pages: '800px'
-    };
-    
-    if (componentType === 'organisms') {
-      const orgHeights = heightMap.organisms;
-      for (const [key, height] of Object.entries(orgHeights)) {
-        if (componentName.includes(key)) {
-          return height;
-        }
-      }
-      return orgHeights.default;
-    }
-    
-    return heightMap[componentType] || '300px';
-  };
-
-  // Responsive viewport sizes avec hauteurs adaptatives
-  const viewportSizes = {
-    mobile: { 
-      width: '375px', 
-      height: selectedComp?.category === 'organisms' && selectedComp.name.toLowerCase().includes('navbar') ? '120px' : '667px', 
-      icon: Smartphone 
-    },
-    tablet: { 
-      width: '768px', 
-      height: selectedComp?.category === 'organisms' && selectedComp.name.toLowerCase().includes('navbar') ? '120px' : '1024px', 
-      icon: Tablet 
-    },
-    desktop: { 
-      width: '100%', 
-      height: getOptimalHeight(), 
-      icon: Monitor 
-    },
-    auto: {
-      width: '100%',
-      height: 'auto',
-      icon: Monitor
-    }
-  };
-
-  const currentViewport = viewportSizes[viewportSize] || viewportSizes.desktop;
-
-  // Gestion du chargement de l'iframe avec détection de hauteur
-  const handleIframeLoad = () => {
-    try {
-      const iframe = iframeRef.current;
-      if (iframe && iframe.contentDocument) {
-        // Essayer de détecter la hauteur du contenu
-        const contentHeight = iframe.contentDocument.body.scrollHeight;
-        if (contentHeight > 0 && contentHeight < 2000) { // Limite raisonnable
-          setIframeHeight(`${Math.max(contentHeight + 40, 120)}px`);
-        }
-      }
-    } catch (error) {
-      // Silence les erreurs de cross-origin
-      console.log('Could not access iframe content for height detection');
-    }
-  };
 
   // Générer le HTML complet pour l'iframe
   const generatePreviewHTML = () => {
-    if (!selectedComp || !selectedComp.template) {
+    if (!component || !component.template) {
       return generateEmptyState();
     }
 
     const frameworkCSS = getFrameworkCDN(tokens.framework);
     const customCSS = generateCSSVariables(tokens);
-    const componentCSS = selectedComp.scss || '';
-    const componentHTML = renderTemplate(selectedComp.template, currentProps);
+    const componentCSS = component.scss || '';
+    const componentHTML = renderTemplate(component.template, currentProps);
     
     return `
 <!DOCTYPE html>
@@ -126,7 +28,7 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${selectedComp.name} Preview</title>
+    <title>${component.name} Preview</title>
     
     <!-- Framework CSS -->
     ${frameworkCSS}
@@ -145,14 +47,14 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
         font-family: var(--font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
         background: #f8f9fa;
         min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       }
       
       .preview-container {
-        width: 100%;
-        max-width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(100vh - 40px);
+        padding: 20px;
       }
       
       .preview-content {
@@ -176,7 +78,7 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
     
     <!-- Component info overlay (dev mode) -->
     <div style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: monospace; z-index: 9999;">
-      ${selectedComp.name} • ${tokens.framework.type} ${tokens.framework.version}
+      ${component.name} • ${tokens.framework.type} ${tokens.framework.version}
     </div>
   </body>
 </html>`;
@@ -219,7 +121,7 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
   </head>
   <body>
     <div class="empty-state">
-      <h3>${selectedComp?.name || 'No Component'}</h3>
+      <h3>${component?.name || 'No Component'}</h3>
       <p>This component needs a template to be previewed.<br>Go to the Code tab to add one.</p>
     </div>
   </body>
@@ -264,7 +166,9 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
       bootstrap: `
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
       `,
-      angular: ``,
+      angular: `
+        <!-- Angular Material would need full Angular setup -->
+      `,
       tailwind: '',
       vanilla: ''
     };
@@ -339,7 +243,7 @@ ${typographyVars}
       
       return () => clearTimeout(timer);
     }
-  }, [selectedComp, currentProps, tokens, selectedComponent]);
+  }, [component, currentProps, tokens, selectedComponent]);
 
   // Ouvrir dans une nouvelle fenêtre
   const openInNewWindow = () => {
@@ -348,7 +252,7 @@ ${typographyVars}
     if (newWindow) {
       newWindow.document.write(html);
       newWindow.document.close();
-      newWindow.document.title = `${selectedComp?.name || 'Component'} Preview`;
+      newWindow.document.title = `${component?.name || 'Component'} Preview`;
     }
   };
 
@@ -361,24 +265,15 @@ ${typographyVars}
     }
   };
 
-  if (!selectedComp) {
-    return (
-      <div className="h-full flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500 text-center">
-          <div className="text-lg mb-2">{t('noComponentSelected')}</div>
-          <div className="text-sm">{t('selectComponent')}</div>
-        </div>
-      </div>
-    );
-  }
+  // Responsive viewport sizes
+  const viewportSizes = {
+    mobile: { width: '375px', height: '667px', icon: Smartphone },
+    tablet: { width: '768px', height: '1024px', icon: Tablet },
+    desktop: { width: '100%', height: '100%', icon: Monitor }
+  };
 
-  if (!components || !components.atoms) {
-    return (
-      <div className="h-full flex items-center justify-center bg-gray-50">
-        <div className="text-gray-400 text-sm">{t('loadingComponents')}</div>
-      </div>
-    );
-  }
+  const currentViewport = viewportSizes[viewportSize];
+  const ViewportIcon = currentViewport.icon;
 
   return (
     <div className="h-full flex flex-col bg-gray-100">
@@ -406,21 +301,6 @@ ${typographyVars}
             })}
           </div>
 
-          {/* Height mode toggle */}
-          <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewportSize('auto')}
-              className={`px-3 py-1 text-xs rounded ${
-                viewportSize === 'auto' 
-                  ? 'bg-white text-green-600 shadow-sm' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              title="Auto height"
-            >
-              Auto
-            </button>
-          </div>
-
           {/* Framework indicator */}
           <div className="text-sm text-gray-500 font-medium">
             {tokens.framework.type} {tokens.framework.version}
@@ -435,6 +315,15 @@ ${typographyVars}
             title={t('refresh')}
           >
             <RefreshCw size={16} />
+          </button>
+
+          {/* Maximize */}
+          <button
+            onClick={openInNewWindow}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+            title={t('openInNewWindow')}
+          >
+            <Maximize2 size={16} />
           </button>
 
           {/* External link */}
@@ -453,8 +342,8 @@ ${typographyVars}
         <div 
           className="bg-white rounded-lg shadow-lg border border-gray-200 transition-all duration-300 relative"
           style={{
-            width: currentViewport?.width || '100%',
-            height: viewportSize === 'auto' ? 'auto' : (currentViewport?.height || getOptimalHeight()),
+            width: currentViewport.width,
+            height: currentViewport.height,
             maxWidth: '100%',
             maxHeight: '100%'
           }}
@@ -474,8 +363,7 @@ ${typographyVars}
             ref={iframeRef}
             className="w-full h-full border-0 rounded-lg"
             sandbox="allow-scripts allow-same-origin"
-            title={`${selectedComp?.name || 'Component'} Preview`}
-            onLoad={handleIframeLoad}
+            title={`${component?.name || 'Component'} Preview`}
           />
         </div>
       </div>
@@ -483,14 +371,14 @@ ${typographyVars}
       {/* Status bar */}
       <div className="bg-white border-t border-gray-200 px-4 py-2 text-xs text-gray-500 flex items-center justify-between">
         <div>
-          {selectedComp?.name || 'No component'} • Last updated: {new Date(lastUpdate).toLocaleTimeString()}
+          {component?.name || 'No component'} • Last updated: {new Date(lastUpdate).toLocaleTimeString()}
         </div>
         <div>
-          {currentViewport?.width || '100%'} × {currentViewport?.height || 'auto'}
+          {currentViewport.width} × {currentViewport.height}
         </div>
       </div>
     </div>
   );
 };
 
-export default VisualTab;
+export default PreviewFrame;

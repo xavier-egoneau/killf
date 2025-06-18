@@ -1,7 +1,21 @@
-// components/Sidebar.jsx - Version avec i18n
+// components/Sidebar.jsx - Version avec tous les tokens
 import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Palette, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { 
+  ChevronRight, 
+  ChevronDown, 
+  Palette, 
+  Plus, 
+  Trash2, 
+  AlertTriangle,
+  Type,
+  Move,
+  Image,
+  Star,
+  Settings,
+  Minus
+} from 'lucide-react';
 import { componentCategories } from '../data';
+import { frameworkOptions, iconSetOptions, spacingPresets, fontPresets } from '../data/tokens';
 import { useI18n } from '../hooks/useI18n';
 
 const Sidebar = ({ tokensHook, componentsHook }) => {
@@ -9,6 +23,12 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
   
   const [expandedSections, setExpandedSections] = useState({
     tokens: true,
+    colors: true,
+    typography: false,
+    spacing: false,
+    branding: false,
+    icons: false,
+    framework: false,
     atoms: true,
     molecules: false,
     organisms: false,
@@ -17,8 +37,29 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
   });
 
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [newTokenInputs, setNewTokenInputs] = useState({
+    colorName: '',
+    colorValue: '#000000',
+    spacingName: '',
+    spacingValue: '1rem'
+  });
 
-  const { tokens, updateColorToken } = tokensHook;
+  const { 
+    tokens, 
+    updateColorToken, 
+    updateTypographyToken,
+    updateSpacingToken,
+    updateBrandingToken,
+    updateIconsToken,
+    updateFrameworkToken,
+    applySpacingPreset,
+    applyFontPreset,
+    addColorToken,
+    removeColorToken,
+    addSpacingToken,
+    removeSpacingToken
+  } = tokensHook;
+  
   const { components, selectedComponent, setSelectedComponent, addComponent, removeComponent } = componentsHook;
 
   // Traductions des catégories
@@ -62,13 +103,26 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
     return colors[category] || 'bg-gray-100';
   };
 
-  const handleAddToken = () => {
-    const tokenName = prompt(`${t('enterNewTokenName')} (ex: "accent"):`);
-    if (tokenName) {
-      const tokenValue = prompt(`${t('enterTokenValue')} (ex: "#ff6b6b"):`);
-      if (tokenValue) {
-        updateColorToken(tokenName, tokenValue);
-      }
+  // Gestion des nouveaux tokens
+  const handleAddColorToken = () => {
+    if (newTokenInputs.colorName && newTokenInputs.colorValue) {
+      addColorToken(newTokenInputs.colorName, newTokenInputs.colorValue);
+      setNewTokenInputs(prev => ({
+        ...prev,
+        colorName: '',
+        colorValue: '#000000'
+      }));
+    }
+  };
+
+  const handleAddSpacingToken = () => {
+    if (newTokenInputs.spacingName && newTokenInputs.spacingValue) {
+      addSpacingToken(newTokenInputs.spacingName, newTokenInputs.spacingValue);
+      setNewTokenInputs(prev => ({
+        ...prev,
+        spacingName: '',
+        spacingValue: '1rem'
+      }));
     }
   };
 
@@ -165,10 +219,6 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
     return null;
   };
 
-  const isDefaultComponent = (category, key) => {
-    return false;
-  };
-
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
       {/* Header */}
@@ -183,75 +233,433 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
           <div className="flex items-center justify-between">
             <button 
               onClick={() => toggleSection('tokens')}
-              className="flex items-center text-left text-sm font-medium text-gray-700 hover:text-gray-900"
+              className="flex items-center text-left text-sm font-medium text-gray-700 hover:text-gray-900 flex-1"
             >
               {expandedSections.tokens ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              <Palette size={16} className="ml-1 mr-2" />
+              <Settings size={16} className="ml-1 mr-2" />
               {t('designTokens')}
-            </button>
-            <button
-              onClick={handleAddToken}
-              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-              title={t('addDesignToken')}
-            >
-              <Plus size={14} />
+              {tokensHook.hasUnsavedTokenChanges && (
+                <span className="ml-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse" title="Unsaved changes"></span>
+              )}
             </button>
           </div>
           
           {expandedSections.tokens && (
-            <div className="mt-2 ml-6 space-y-3">
+            <div className="mt-2 ml-6 space-y-4">
+              
+              {/* Colors Section */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{t('primaryColor')}</label>
-                <input 
-                  type="color" 
-                  value={tokens.colors.primary}
-                  onChange={(e) => updateColorToken('primary', e.target.value)}
-                  className="w-full h-8 rounded border"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{t('secondaryColor')}</label>
-                <input 
-                  type="color" 
-                  value={tokens.colors.secondary}
-                  onChange={(e) => updateColorToken('secondary', e.target.value)}
-                  className="w-full h-8 rounded border"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{t('successColor')}</label>
-                <input 
-                  type="color" 
-                  value={tokens.colors.success}
-                  onChange={(e) => updateColorToken('success', e.target.value)}
-                  className="w-full h-8 rounded border"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{t('dangerColor')}</label>
-                <input 
-                  type="color" 
-                  value={tokens.colors.danger}
-                  onChange={(e) => updateColorToken('danger', e.target.value)}
-                  className="w-full h-8 rounded border"
-                />
-              </div>
-              {/* Show additional colors dynamically */}
-              {Object.entries(tokens.colors)
-                .filter(([key]) => !['primary', 'secondary', 'success', 'danger'].includes(key))
-                .map(([key, value]) => (
-                  <div key={key}>
-                    <label className="block text-xs font-medium text-gray-600 mb-1 capitalize">
-                      {key} Color
-                    </label>
-                    <input 
-                      type="color" 
-                      value={value}
-                      onChange={(e) => updateColorToken(key, e.target.value)}
-                      className="w-full h-8 rounded border"
-                    />
+                <button 
+                  onClick={() => toggleSection('colors')}
+                  className="flex items-center text-left text-xs font-medium text-gray-600 hover:text-gray-800 w-full"
+                >
+                  {expandedSections.colors ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <Palette size={14} className="ml-1 mr-2" />
+                  {t('colors')}
+                </button>
+                
+                {expandedSections.colors && (
+                  <div className="mt-2 ml-4 space-y-2">
+                    {/* Couleurs existantes */}
+                    {Object.entries(tokens.colors).map(([key, value]) => {
+                      const isProtected = ['primary', 'secondary', 'success', 'danger'].includes(key);
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <label className="block text-xs font-medium text-gray-600 mb-1 capitalize">
+                              {key}
+                            </label>
+                            <input 
+                              type="color" 
+                              value={value}
+                              onChange={(e) => updateColorToken(key, e.target.value)}
+                              className="w-full h-6 rounded border"
+                            />
+                          </div>
+                          {!isProtected && (
+                            <button
+                              onClick={() => removeColorToken(key)}
+                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded mt-4"
+                              title={`Remove ${key} color`}
+                            >
+                              <Minus size={12} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Ajouter nouvelle couleur */}
+                    <div className="mt-3 p-2 bg-gray-50 rounded">
+                      <div className="text-xs font-medium text-gray-600 mb-2">Add Color</div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Name"
+                          value={newTokenInputs.colorName}
+                          onChange={(e) => setNewTokenInputs(prev => ({ ...prev, colorName: e.target.value }))}
+                          className="flex-1 text-xs border rounded px-2 py-1"
+                        />
+                        <input
+                          type="color"
+                          value={newTokenInputs.colorValue}
+                          onChange={(e) => setNewTokenInputs(prev => ({ ...prev, colorValue: e.target.value }))}
+                          className="w-8 h-6 rounded border"
+                        />
+                        <button
+                          onClick={handleAddColorToken}
+                          className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          <Plus size={12} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                ))}
+                )}
+              </div>
+
+              {/* Typography Section */}
+              <div>
+                <button 
+                  onClick={() => toggleSection('typography')}
+                  className="flex items-center text-left text-xs font-medium text-gray-600 hover:text-gray-800 w-full"
+                >
+                  {expandedSections.typography ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <Type size={14} className="ml-1 mr-2" />
+                  Typography
+                </button>
+                
+                {expandedSections.typography && (
+                  <div className="mt-2 ml-4 space-y-3">
+                    {/* Font Presets */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Font Preset</label>
+                      <select
+                        onChange={(e) => e.target.value && applyFontPreset(e.target.value)}
+                        className="w-full text-xs border rounded px-2 py-1"
+                        defaultValue=""
+                      >
+                        <option value="">Choose preset...</option>
+                        {Object.entries(fontPresets).map(([key, preset]) => (
+                          <option key={key} value={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Primary Font</label>
+                      <input 
+                        type="text" 
+                        value={tokens.typography.fontFamily}
+                        onChange={(e) => updateTypographyToken('fontFamily', e.target.value)}
+                        className="w-full text-xs border rounded px-2 py-1"
+                        placeholder="Font family"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Secondary Font</label>
+                      <input 
+                        type="text" 
+                        value={tokens.typography.secondaryFont}
+                        onChange={(e) => updateTypographyToken('secondaryFont', e.target.value)}
+                        className="w-full text-xs border rounded px-2 py-1"
+                        placeholder="Secondary font family"
+                      />
+                    </div>
+                    
+                    {/* Font Sizes */}
+                    {Object.entries(tokens.typography.sizes).map(([key, value]) => (
+                      <div key={key}>
+                        <label className="block text-xs font-medium text-gray-600 mb-1 capitalize">
+                          Size {key}
+                        </label>
+                        <input 
+                          type="text" 
+                          value={value}
+                          onChange={(e) => updateTypographyToken(key, e.target.value)}
+                          className="w-full text-xs border rounded px-2 py-1"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Spacing Section */}
+              <div>
+                <button 
+                  onClick={() => toggleSection('spacing')}
+                  className="flex items-center text-left text-xs font-medium text-gray-600 hover:text-gray-800 w-full"
+                >
+                  {expandedSections.spacing ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <Move size={14} className="ml-1 mr-2" />
+                  Spacing
+                </button>
+                
+                {expandedSections.spacing && (
+                  <div className="mt-2 ml-4 space-y-3">
+                    {/* Spacing Presets */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Spacing Preset</label>
+                      <select
+                        onChange={(e) => e.target.value && applySpacingPreset(e.target.value)}
+                        className="w-full text-xs border rounded px-2 py-1"
+                        defaultValue=""
+                      >
+                        <option value="">Choose preset...</option>
+                        {Object.keys(spacingPresets).map(key => (
+                          <option key={key} value={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    {/* Spacing values */}
+                    {Object.entries(tokens.spacing).map(([key, value]) => {
+                      const isProtected = ['xs', 'sm', 'md', 'lg', 'xl'].includes(key);
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <label className="block text-xs font-medium text-gray-600 mb-1 capitalize">
+                              {key}
+                            </label>
+                            <input 
+                              type="text" 
+                              value={value}
+                              onChange={(e) => updateSpacingToken(key, e.target.value)}
+                              className="w-full text-xs border rounded px-2 py-1"
+                            />
+                          </div>
+                          {!isProtected && (
+                            <button
+                              onClick={() => removeSpacingToken(key)}
+                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded mt-4"
+                              title={`Remove ${key} spacing`}
+                            >
+                              <Minus size={12} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Ajouter nouveau spacing */}
+                    <div className="mt-3 p-2 bg-gray-50 rounded">
+                      <div className="text-xs font-medium text-gray-600 mb-2">Add Spacing</div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Name"
+                          value={newTokenInputs.spacingName}
+                          onChange={(e) => setNewTokenInputs(prev => ({ ...prev, spacingName: e.target.value }))}
+                          className="flex-1 text-xs border rounded px-2 py-1"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Value"
+                          value={newTokenInputs.spacingValue}
+                          onChange={(e) => setNewTokenInputs(prev => ({ ...prev, spacingValue: e.target.value }))}
+                          className="flex-1 text-xs border rounded px-2 py-1"
+                        />
+                        <button
+                          onClick={handleAddSpacingToken}
+                          className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          <Plus size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Branding Section */}
+              <div>
+                <button 
+                  onClick={() => toggleSection('branding')}
+                  className="flex items-center text-left text-xs font-medium text-gray-600 hover:text-gray-800 w-full"
+                >
+                  {expandedSections.branding ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <Image size={14} className="ml-1 mr-2" />
+                  Branding
+                </button>
+                
+                {expandedSections.branding && (
+                  <div className="mt-2 ml-4 space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Brand Name</label>
+                      <input 
+                        type="text" 
+                        value={tokens.branding.brandName}
+                        onChange={(e) => updateBrandingToken('brandName', e.target.value)}
+                        className="w-full text-xs border rounded px-2 py-1"
+                        placeholder="My Brand"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Logo URL</label>
+                      <input 
+                        type="url" 
+                        value={tokens.branding.logoUrl}
+                        onChange={(e) => updateBrandingToken('logoUrl', e.target.value)}
+                        className="w-full text-xs border rounded px-2 py-1"
+                        placeholder="https://example.com/logo.png"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Logo Alt Text</label>
+                      <input 
+                        type="text" 
+                        value={tokens.branding.logoAlt}
+                        onChange={(e) => updateBrandingToken('logoAlt', e.target.value)}
+                        className="w-full text-xs border rounded px-2 py-1"
+                        placeholder="Logo description"
+                      />
+                    </div>
+                    
+                    {/* Logo Preview */}
+                    {tokens.branding.logoUrl && (
+                      <div className="mt-2 p-2 bg-gray-50 rounded">
+                        <div className="text-xs font-medium text-gray-600 mb-1">Preview</div>
+                        <img 
+                          src={tokens.branding.logoUrl} 
+                          alt={tokens.branding.logoAlt}
+                          className="max-w-full h-8 object-contain"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Icons Section */}
+              <div>
+                <button 
+                  onClick={() => toggleSection('icons')}
+                  className="flex items-center text-left text-xs font-medium text-gray-600 hover:text-gray-800 w-full"
+                >
+                  {expandedSections.icons ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <Star size={14} className="ml-1 mr-2" />
+                  Icons
+                </button>
+                
+                {expandedSections.icons && (
+                  <div className="mt-2 ml-4 space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Icon Set</label>
+                      <select
+                        value={tokens.icons.set}
+                        onChange={(e) => updateIconsToken('set', e.target.value)}
+                        className="w-full text-xs border rounded px-2 py-1"
+                      >
+                        {Object.entries(iconSetOptions).map(([key, option]) => (
+                          <option key={key} value={key}>{option.name}</option>
+                        ))}
+                      </select>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {iconSetOptions[tokens.icons.set]?.description}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Default Size</label>
+                      <input 
+                        type="text" 
+                        value={tokens.icons.size}
+                        onChange={(e) => updateIconsToken('size', e.target.value)}
+                        className="w-full text-xs border rounded px-2 py-1"
+                        placeholder="1rem"
+                      />
+                    </div>
+                    
+                    {/* Icon Set Info */}
+                    <div className="p-2 bg-gray-50 rounded">
+                      <div className="text-xs font-medium text-gray-600 mb-1">Icon Set Info</div>
+                      <div className="text-xs text-gray-500">
+                        <div><strong>Name:</strong> {iconSetOptions[tokens.icons.set]?.name}</div>
+                        <div><strong>Prefix:</strong> {iconSetOptions[tokens.icons.set]?.prefix}</div>
+                        <div><strong>URL:</strong> 
+                          <a 
+                            href={iconSetOptions[tokens.icons.set]?.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 ml-1"
+                          >
+                            Visit
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Framework Section */}
+              <div>
+                <button 
+                  onClick={() => toggleSection('framework')}
+                  className="flex items-center text-left text-xs font-medium text-gray-600 hover:text-gray-800 w-full"
+                >
+                  {expandedSections.framework ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <Settings size={14} className="ml-1 mr-2" />
+                  Framework
+                </button>
+                
+                {expandedSections.framework && (
+                  <div className="mt-2 ml-4 space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">CSS Framework</label>
+                      <select
+                        value={tokens.framework.type}
+                        onChange={(e) => {
+                          updateFrameworkToken('type', e.target.value);
+                          // Auto-update version to first available
+                          const firstVersion = frameworkOptions[e.target.value]?.versions[0];
+                          if (firstVersion) {
+                            updateFrameworkToken('version', firstVersion);
+                          }
+                        }}
+                        className="w-full text-xs border rounded px-2 py-1"
+                      >
+                        {Object.entries(frameworkOptions).map(([key, option]) => (
+                          <option key={key} value={key}>{option.name}</option>
+                        ))}
+                      </select>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {frameworkOptions[tokens.framework.type]?.description}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Version</label>
+                      <select
+                        value={tokens.framework.version}
+                        onChange={(e) => updateFrameworkToken('version', e.target.value)}
+                        className="w-full text-xs border rounded px-2 py-1"
+                      >
+                        {frameworkOptions[tokens.framework.type]?.versions.map(version => (
+                          <option key={version} value={version}>{version}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    {/* Framework Info */}
+                    <div className="p-2 bg-gray-50 rounded">
+                      <div className="text-xs font-medium text-gray-600 mb-1">Framework Info</div>
+                      <div className="text-xs text-gray-500">
+                        <div><strong>Type:</strong> {frameworkOptions[tokens.framework.type]?.utilityBased ? 'Utility-based' : 'Component-based'}</div>
+                        <div><strong>CSS Prefix:</strong> {frameworkOptions[tokens.framework.type]?.cssPrefix || 'None'}</div>
+                        <div><strong>Current:</strong> {frameworkOptions[tokens.framework.type]?.name} {tokens.framework.version}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -284,8 +692,6 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                   const componentPath = ['atoms', 'molecules'].includes(category.key) 
                     ? key 
                     : `${category.key}.${key}`;
-                  
-                  const isDefault = isDefaultComponent(category.key, key);
                   
                   return (
                     <div key={key} className="flex items-center group">

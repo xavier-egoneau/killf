@@ -14,6 +14,8 @@ const CodeTab = ({ tokens, components, selectedComponent, currentProps, onUpdate
   const [originalHtmlCode, setOriginalHtmlCode] = useState('');
   const [originalCssCode, setOriginalCssCode] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [templateValidation, setTemplateValidation] = useState({ isValid: true, errors: [] });
+
   const getComponent = (componentPath) => {
     if (!componentPath) return null;
     

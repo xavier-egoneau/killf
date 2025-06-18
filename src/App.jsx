@@ -1,5 +1,5 @@
-// App.jsx - Version avec i18n
-import React, { useState } from 'react';
+// App.jsx - Version avec sauvegarde tokens
+import React, { useState, useEffect } from 'react';
 import { Eye, Code, Wand2, Download, Save } from 'lucide-react';
 
 // Import hooks
@@ -16,6 +16,7 @@ import LanguageSwitcher from './components/LanguageSwitcher';
 function App() {
   const [activeTab, setActiveTab] = useState('visual');
   const [isSavingAll, setIsSavingAll] = useState(false);
+  const [saveResults, setSaveResults] = useState({});
   
   // i18n hook
   const { t } = useI18n();
@@ -24,8 +25,24 @@ function App() {
   const tokensHook = useTokens();
   const componentsHook = useComponents();
 
-  const { tokens } = tokensHook;
+  const { tokens, hasUnsavedTokenChanges } = tokensHook;
   const { components, selectedComponent, currentProps, updateComponent } = componentsHook;
+
+  // Écouter les résultats de sauvegarde des tokens
+  useEffect(() => {
+    const handleTokensSaveResult = (event) => {
+      setSaveResults(prev => ({
+        ...prev,
+        tokens: event.detail
+      }));
+    };
+
+    window.addEventListener('tokensSaveResult', handleTokensSaveResult);
+    
+    return () => {
+      window.removeEventListener('tokensSaveResult', handleTokensSaveResult);
+    };
+  }, []);
 
   const handleExport = () => {
     const aiPrompt = generateAIPrompt(tokens, components);
@@ -42,37 +59,67 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  // Nouvelle fonction Save All
+  // Fonction Save All améliorée
   const handleSaveAll = async () => {
     setIsSavingAll(true);
+    setSaveResults({});
     
     try {
+      console.log('🔄 Starting Save All process...');
+      
       // Déclencher l'événement custom pour sauvegarder tout
       const saveAllEvent = new CustomEvent('saveAll');
       window.dispatchEvent(saveAllEvent);
       
-      // Feedback visuel
+      // Attendre un peu pour que les sauvegardes se terminent
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Analyser les résultats
       const button = document.getElementById('save-all-btn');
       if (button) {
         const originalText = button.textContent;
-        button.textContent = `✅ ${t('allSaved')}`;
+        
+        // Compter les succès
+        const results = Object.values(saveResults);
+        const successes = results.filter(r => r?.success).length;
+        const failures = results.filter(r => r?.success === false).length;
+        
+        if (failures === 0) {
+          button.textContent = `✅ ${t('allSaved')}`;
+          button.style.backgroundColor = '#10b981';
+          console.log('✅ Save All completed successfully');
+        } else {
+          button.textContent = `⚠️ ${successes}/${results.length} saved`;
+          button.style.backgroundColor = '#f59e0b';
+          console.log(`⚠️ Save All completed with ${failures} failures`);
+        }
+        
         setTimeout(() => {
           button.textContent = originalText;
-        }, 2000);
+          button.style.backgroundColor = '';
+        }, 3000);
       }
+      
     } catch (error) {
       console.error('Save All failed:', error);
       const button = document.getElementById('save-all-btn');
       if (button) {
         const originalText = button.textContent;
         button.textContent = `❌ ${t('saveFailed')}`;
+        button.style.backgroundColor = '#ef4444';
         setTimeout(() => {
           button.textContent = originalText;
-        }, 2000);
+          button.style.backgroundColor = '';
+        }, 3000);
       }
     } finally {
       setIsSavingAll(false);
     }
+  };
+
+  // Indicateur des changements non sauvegardés
+  const hasAnyUnsavedChanges = () => {
+    return hasUnsavedTokenChanges; // On peut ajouter d'autres vérifications ici
   };
 
   return (
@@ -109,6 +156,17 @@ function App() {
         .main-content {
           flex: 1;
           min-height: 0;
+        }
+        
+        /* Unsaved changes indicator */
+        .unsaved-indicator {
+          animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
         }
       `}</style>
       
@@ -155,33 +213,67 @@ function App() {
               </button>
             </div>
             
-            {/* Boutons d'action */}
+            {/* Status & Actions */}
             <div className="flex items-center space-x-3">
-              {/* Sélecteur de langue */}
-              <LanguageSwitcher />
-              
-              {/* Bouton Save All - Visible seulement en mode Code */}
-              {activeTab === 'code' && (
-                <button 
-                  id="save-all-btn"
-                  onClick={handleSaveAll}
-                  disabled={isSavingAll}
-                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  <Save size={16} className="mr-2" />
-                  {isSavingAll ? t('saving') : t('saveAll')}
-                </button>
+              {/* Unsaved changes indicator */}
+              {hasAnyUnsavedChanges() && (
+                <div className="flex items-center px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full unsaved-indicator">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+                  {t('unsavedChanges')}
+                </div>
               )}
               
+              {/* Language switcher */}
+              <LanguageSwitcher />
+              
+              {/* Save All button - Always visible but disabled if no changes */}
+              <button 
+                id="save-all-btn"
+                onClick={handleSaveAll}
+                disabled={isSavingAll || !hasAnyUnsavedChanges()}
+                className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                  hasAnyUnsavedChanges()
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                } ${isSavingAll ? 'opacity-50' : ''}`}
+                title={hasAnyUnsavedChanges() ? t('saveAll') : 'No changes to save'}
+              >
+                <Save size={16} className={`mr-2 ${isSavingAll ? 'animate-spin' : ''}`} />
+                {isSavingAll ? t('saving') : t('saveAll')}
+                {hasUnsavedTokenChanges && (
+                  <span className="ml-2 px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">
+                    {t('tokens')}
+                  </span>
+                )}
+              </button>
+              
+              {/* Export button */}
               <button 
                 onClick={handleExport}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 <Download size={16} className="mr-2" />
                 {t('export')}
               </button>
             </div>
           </div>
+          
+          {/* Save status bar */}
+          {Object.keys(saveResults).length > 0 && (
+            <div className="mt-3 p-2 bg-gray-50 rounded-lg">
+              <div className="text-xs text-gray-600 flex items-center justify-between">
+                <span>Save Status:</span>
+                <div className="flex space-x-4">
+                  {saveResults.tokens && (
+                    <span className={`flex items-center ${saveResults.tokens.success ? 'text-green-600' : 'text-red-600'}`}>
+                      {saveResults.tokens.success ? '✅' : '❌'} Design Tokens
+                    </span>
+                  )}
+                  {/* Ici on pourrait ajouter d'autres statuts de sauvegarde */}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Main Content Area */}
