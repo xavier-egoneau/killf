@@ -283,7 +283,7 @@ function App() {
               <LanguageSwitcher />
               
               {/* 🆕 CSS Export Dropdown */}
-              <div className="relative group">
+              <div className="relative group cssExport">
                 <button 
                   id="css-export-btn"
                   disabled={isExportingCSS}
@@ -297,7 +297,7 @@ function App() {
                 
                 {/* Dropdown menu */}
                 <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                  <div className="py-1">
+                  <div className="py-1 cssExport-dropdown">
                     <button
                       onClick={() => handleCSSExport('complete')}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"

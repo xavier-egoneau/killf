@@ -36,6 +36,12 @@ function checkDependencies() {
     process.exit(1);
   }
   
+  // Vérifier les fichiers CSS
+  if (!existsSync('src/input.css')) {
+    log('red', 'ERROR', 'src/input.css introuvable.');
+    process.exit(1);
+  }
+  
   startServices();
 }
 
@@ -43,47 +49,26 @@ function checkDependencies() {
 function startServices() {
   log('green', 'START', 'Démarrage du Design System Builder...');
   
-  const services = [
-    {
-      name: 'Backend',
-      command: 'node',
-      args: ['server.js'],
-      cwd: 'server',
-      color: 'green',
-      port: 3001
-    },
-    {
-      name: 'Frontend',
-      command: 'npm',
-      args: ['run', 'dev:frontend'],
-      cwd: '.',
-      color: 'blue',
-      port: 3000
-    },
-    {
-      name: 'Tailwind',
-      command: 'npx',
-      args: ['tailwindcss', '-i', './src/input.css', '-o', './src/output.css', '--watch'],
-      cwd: '.',
-      color: 'cyan',
-      port: null
-    }
-  ];
+  // 🆕 Utiliser directement npm run pour éviter les problèmes de concurrently
+  log('blue', 'INFO', 'Lancement via npm run dev (plus stable)...');
+  
+  const npmProcess = spawn('npm', ['run', 'dev'], {
+    cwd: process.cwd(),
+    stdio: 'inherit', // 🆕 Hériter des flux stdio (plus simple)
+    shell: true,
+    env: { ...process.env, FORCE_COLOR: '1' }
+  });
 
-  const processes = [];
-
-  // Fonction pour arrêter tous les processus
+  // Gestion propre de l'arrêt
   function cleanup() {
     log('yellow', 'CLEANUP', 'Arrêt des services...');
-    processes.forEach(proc => {
-      if (proc && !proc.killed) {
-        if (process.platform === 'win32') {
-          spawn('taskkill', ['/pid', proc.pid, '/f', '/t'], { stdio: 'ignore' });
-        } else {
-          proc.kill('SIGTERM');
-        }
+    if (npmProcess && !npmProcess.killed) {
+      if (process.platform === 'win32') {
+        spawn('taskkill', ['/pid', npmProcess.pid, '/f', '/t'], { stdio: 'ignore' });
+      } else {
+        npmProcess.kill('SIGTERM');
       }
-    });
+    }
     process.exit(0);
   }
 
@@ -91,62 +76,35 @@ function startServices() {
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
 
-  // Démarrer chaque service
-  services.forEach((service, index) => {
-    setTimeout(() => {
-      log(service.color, service.name.toUpperCase(), `Démarrage${service.port ? ` sur port ${service.port}` : ''}...`);
-      
-      const proc = spawn(service.command, service.args, {
-        cwd: service.cwd,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        shell: true
-      });
-
-      processes.push(proc);
-
-      // Gestion des logs avec préfixe coloré
-      proc.stdout.on('data', (data) => {
-        const lines = data.toString().split('\n').filter(line => line.trim());
-        lines.forEach(line => {
-          if (line.trim()) {
-            log(service.color, service.name, line.trim());
-          }
-        });
-      });
-
-      proc.stderr.on('data', (data) => {
-        const lines = data.toString().split('\n').filter(line => line.trim());
-        lines.forEach(line => {
-          if (line.trim() && !line.includes('DeprecationWarning')) {
-            log('red', `${service.name}-ERR`, line.trim());
-          }
-        });
-      });
-
-      proc.on('close', (code) => {
-        if (code !== 0) {
-          log('red', service.name.toUpperCase(), `Processus arrêté avec le code ${code}`);
-        }
-      });
-
-      proc.on('error', (err) => {
-        log('red', service.name.toUpperCase(), `Erreur: ${err.message}`);
-      });
-
-    }, index * 1000); // Délai de 1s entre chaque service
+  npmProcess.on('close', (code) => {
+    if (code !== 0 && code !== null) {
+      log('red', 'ERROR', `npm run dev s'est arrêté avec le code ${code}`);
+      log('yellow', 'HELP', 'Essayez de lancer manuellement: npm run dev');
+    }
   });
 
-  // Message de succès après 4 secondes
+  npmProcess.on('error', (err) => {
+    log('red', 'ERROR', `Erreur npm: ${err.message}`);
+    log('yellow', 'HELP', 'Vérifiez que npm et Node.js sont installés correctement');
+  });
+
+  // Message de succès
   setTimeout(() => {
     console.log('\n' + '='.repeat(60));
-    log('green', 'SUCCESS', '🚀 Design System Builder démarré !');
-    log('blue', 'FRONTEND', '📱 http://localhost:3000');
-    log('green', 'BACKEND', '🔧 http://localhost:3001/api/health');
-    log('cyan', 'TAILWIND', '🎨 Mode watch actif');
+    log('green', 'SUCCESS', '🚀 Design System Builder lancé via npm!');
+    log('blue', 'INFO', '📱 Frontend: http://localhost:3000');
+    log('green', 'INFO', '🔧 Backend: http://localhost:3001/api/health');
+    log('cyan', 'INFO', '🎨 Tailwind: Mode watch actif');
     console.log('='.repeat(60) + '\n');
     log('yellow', 'INFO', 'Utilisez Ctrl+C pour arrêter tous les services');
-  }, 4000);
+  }, 2000);
 }
 
-// Point d'entrée
-checkDependencies();
+// Point d'entrée avec gestion d'erreur
+try {
+  checkDependencies();
+} catch (error) {
+  log('red', 'ERROR', `Erreur fatale: ${error.message}`);
+  log('yellow', 'FALLBACK', 'Utilisez plutôt: npm run dev');
+  process.exit(1);
+}

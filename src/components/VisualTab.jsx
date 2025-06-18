@@ -1,8 +1,9 @@
-// components/VisualTab.jsx - Version avec PreviewFrame complet
+// components/VisualTab.jsx - Version avec Framework Manager intégré
 import React, { useState, useEffect, useRef } from 'react';
-import { ExternalLink, Maximize2, Smartphone, Tablet, Monitor, RefreshCw } from 'lucide-react';
+import { ExternalLink, Maximize2, Smartphone, Tablet, Monitor, RefreshCw, Settings, Info } from 'lucide-react';
 import { useI18n } from '../hooks/useI18n';
 import { renderTemplate } from '../utils/templateEngine';
+import { generateFrameworkPreviewHTML, FRAMEWORK_CONFIGS, getFrameworkSuggestions } from '../utils/frameworkManager';
 
 const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
   const { t } = useI18n();
@@ -10,7 +11,8 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [viewportSize, setViewportSize] = useState('desktop');
   const [lastUpdate, setLastUpdate] = useState(Date.now());
-  const [iframeHeight, setIframeHeight] = useState('auto');
+  const [showFrameworkInfo, setShowFrameworkInfo] = useState(false);
+  const [frameworkSuggestions, setFrameworkSuggestions] = useState(null);
   
   const getComponent = (componentPath) => {
     if (!componentPath) return null;
@@ -23,6 +25,16 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
   };
 
   const selectedComp = getComponent(selectedComponent);
+  const currentFramework = FRAMEWORK_CONFIGS[tokens.framework.type];
+
+  // Mettre à jour les suggestions du framework quand le composant change
+  useEffect(() => {
+    if (selectedComp) {
+      const componentType = selectedComp.category === 'atoms' ? 'button' : 'card';
+      const suggestions = getFrameworkSuggestions(tokens, componentType);
+      setFrameworkSuggestions(suggestions);
+    }
+  }, [selectedComp, tokens.framework]);
 
   // Déterminer la hauteur optimale basée sur le type de composant
   const getOptimalHeight = () => {
@@ -31,15 +43,9 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
     const componentType = selectedComp.category;
     const componentName = selectedComp.name.toLowerCase();
     
-    // Heights par type de composant
     const heightMap = {
-      // Atoms - petits composants
       atoms: '200px',
-      
-      // Molecules - composants moyens
       molecules: componentName.includes('card') ? '300px' : '250px',
-      
-      // Organisms - grands composants
       organisms: {
         navbar: '120px',
         header: '200px',
@@ -47,8 +53,6 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
         sidebar: '400px',
         default: '350px'
       },
-      
-      // Templates et Pages - pleine hauteur
       templates: '600px',
       pages: '800px'
     };
@@ -66,7 +70,7 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
     return heightMap[componentType] || '300px';
   };
 
-  // Responsive viewport sizes avec hauteurs adaptatives
+  // Responsive viewport sizes
   const viewportSizes = {
     mobile: { 
       width: '375px', 
@@ -92,94 +96,16 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
 
   const currentViewport = viewportSizes[viewportSize] || viewportSizes.desktop;
 
-  // Gestion du chargement de l'iframe avec détection de hauteur
-  const handleIframeLoad = () => {
-    try {
-      const iframe = iframeRef.current;
-      if (iframe && iframe.contentDocument) {
-        // Essayer de détecter la hauteur du contenu
-        const contentHeight = iframe.contentDocument.body.scrollHeight;
-        if (contentHeight > 0 && contentHeight < 2000) { // Limite raisonnable
-          setIframeHeight(`${Math.max(contentHeight + 40, 120)}px`);
-        }
-      }
-    } catch (error) {
-      // Silence les erreurs de cross-origin
-      console.log('Could not access iframe content for height detection');
-    }
-  };
-
-  // Générer le HTML complet pour l'iframe
+  // 🆕 Génération du HTML avec framework intégré
   const generatePreviewHTML = () => {
     if (!selectedComp || !selectedComp.template) {
       return generateEmptyState();
     }
 
-    const frameworkCSS = getFrameworkCDN(tokens.framework);
-    const customCSS = generateCSSVariables(tokens);
-    const componentCSS = selectedComp.scss || '';
     const componentHTML = renderTemplate(selectedComp.template, currentProps);
     
-    return `
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${selectedComp.name} Preview</title>
-    
-    <!-- Framework CSS -->
-    ${frameworkCSS}
-    
-    <!-- Custom Design Tokens -->
-    <style>
-      ${customCSS}
-      
-      /* Component-specific styles */
-      ${componentCSS}
-      
-      /* Preview container styles */
-      body {
-        margin: 0;
-        padding: 20px;
-        font-family: var(--font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
-        background: #f8f9fa;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      
-      .preview-container {
-        width: 100%;
-        max-width: 100%;
-      }
-      
-      .preview-content {
-        max-width: 100%;
-        width: 100%;
-      }
-      
-      /* Framework-specific adjustments */
-      ${getFrameworkAdjustments(tokens.framework)}
-    </style>
-    
-    <!-- Framework JS if needed -->
-    ${getFrameworkJS(tokens.framework)}
-  </head>
-  <body>
-    <div class="preview-container">
-      <div class="preview-content">
-        ${componentHTML}
-      </div>
-    </div>
-    
-    <!-- Component info overlay (dev mode) -->
-    <div style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: monospace; z-index: 9999;">
-      ${selectedComp.name} • ${tokens.framework.type} ${tokens.framework.version}
-    </div>
-  </body>
-</html>`;
+    // Utiliser le nouveau gestionnaire de framework
+    return generateFrameworkPreviewHTML(tokens, selectedComp, currentProps, componentHTML);
   };
 
   // État vide quand pas de template
@@ -226,104 +152,6 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
 </html>`;
   };
 
-  // CDN links pour chaque framework
-  const getFrameworkCDN = (framework) => {
-    const cdnLinks = {
-      bootstrap: `
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-      `,
-      tailwind: `
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script>
-          tailwind.config = {
-            theme: {
-              extend: {
-                colors: {
-                  primary: '${tokens.colors.primary}',
-                  secondary: '${tokens.colors.secondary}',
-                  success: '${tokens.colors.success}',
-                  danger: '${tokens.colors.danger}'
-                }
-              }
-            }
-          }
-        </script>
-      `,
-      angular: `
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-      `,
-      vanilla: ''
-    };
-    return cdnLinks[framework?.type] || '';
-  };
-
-  // JS pour les frameworks qui en ont besoin
-  const getFrameworkJS = (framework) => {
-    const jsLinks = {
-      bootstrap: `
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-      `,
-      angular: ``,
-      tailwind: '',
-      vanilla: ''
-    };
-    return jsLinks[framework?.type] || '';
-  };
-
-  // Ajustements CSS spécifiques par framework
-  const getFrameworkAdjustments = (framework) => {
-    const adjustments = {
-      bootstrap: `
-        /* Bootstrap adjustments */
-        .preview-content {
-          /* Bootstrap container behavior */
-        }
-      `,
-      tailwind: `
-        /* Tailwind adjustments */
-        .preview-content {
-          /* Tailwind specific styles */
-        }
-      `,
-      angular: `
-        /* Angular Material adjustments */
-        body {
-          font-family: Roboto, "Helvetica Neue", sans-serif;
-        }
-      `,
-      vanilla: `
-        /* Vanilla CSS adjustments */
-      `
-    };
-    return adjustments[framework?.type] || '';
-  };
-
-  // Générer les CSS variables depuis les tokens
-  const generateCSSVariables = (tokens) => {
-    const colorVars = Object.entries(tokens.colors)
-      .map(([key, value]) => `  --color-${key}: ${value};`)
-      .join('\n');
-
-    const spacingVars = Object.entries(tokens.spacing)
-      .map(([key, value]) => `  --spacing-${key}: ${value};`)
-      .join('\n');
-
-    const typographyVars = `  --font-family: ${tokens.typography.fontFamily};
-  --font-family-secondary: ${tokens.typography.secondaryFont};
-${Object.entries(tokens.typography.sizes)
-  .map(([key, value]) => `  --font-${key}: ${value};`)
-  .join('\n')}`;
-
-    return `:root {
-${colorVars}
-
-${spacingVars}
-
-${typographyVars}
-}`;
-  };
-
   // Mettre à jour l'iframe quand les props changent
   useEffect(() => {
     if (iframeRef.current) {
@@ -331,7 +159,6 @@ ${typographyVars}
       const html = generatePreviewHTML();
       iframeRef.current.srcdoc = html;
       
-      // Simuler le loading
       const timer = setTimeout(() => {
         setIsLoading(false);
         setLastUpdate(Date.now());
@@ -348,7 +175,7 @@ ${typographyVars}
     if (newWindow) {
       newWindow.document.write(html);
       newWindow.document.close();
-      newWindow.document.title = `${selectedComp?.name || 'Component'} Preview`;
+      newWindow.document.title = `${selectedComp?.name || 'Component'} Preview - ${currentFramework?.name}`;
     }
   };
 
@@ -406,24 +233,18 @@ ${typographyVars}
             })}
           </div>
 
-          {/* Height mode toggle */}
-          <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+          {/* 🆕 Framework indicator avec info */}
+          <div className="flex items-center space-x-2">
+            <div className="text-sm text-gray-500 font-medium">
+              {currentFramework?.name} {tokens.framework.version}
+            </div>
             <button
-              onClick={() => setViewportSize('auto')}
-              className={`px-3 py-1 text-xs rounded ${
-                viewportSize === 'auto' 
-                  ? 'bg-white text-green-600 shadow-sm' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              title="Auto height"
+              onClick={() => setShowFrameworkInfo(!showFrameworkInfo)}
+              className="p-1 text-gray-400 hover:text-gray-600 rounded"
+              title="Framework info"
             >
-              Auto
+              <Info size={14} />
             </button>
-          </div>
-
-          {/* Framework indicator */}
-          <div className="text-sm text-gray-500 font-medium">
-            {tokens.framework.type} {tokens.framework.version}
           </div>
         </div>
 
@@ -448,6 +269,42 @@ ${typographyVars}
         </div>
       </div>
 
+      {/* 🆕 Framework Info Panel */}
+      {showFrameworkInfo && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="text-sm font-medium text-blue-800 mb-2">
+                🚀 {currentFramework?.name} Integration
+              </div>
+              <div className="text-xs text-blue-700 space-y-1">
+                <div><strong>Type:</strong> {currentFramework?.utilityBased ? 'Utility-based' : 'Component-based'}</div>
+                <div><strong>CDN:</strong> {currentFramework?.cdn.css ? '✅ Loaded' : '❌ None'}</div>
+                {currentFramework?.cssPrefix && (
+                  <div><strong>Prefix:</strong> {currentFramework.cssPrefix}</div>
+                )}
+              </div>
+              
+              {/* 🆕 Framework suggestions */}
+              {frameworkSuggestions && (
+                <div className="mt-3">
+                  <div className="text-xs font-medium text-blue-800 mb-1">Suggested Classes:</div>
+                  <div className="text-xs text-blue-600">
+                    <code className="bg-blue-100 px-1 rounded">{frameworkSuggestions.base}</code>
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setShowFrameworkInfo(false)}
+              className="text-blue-400 hover:text-blue-600"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Preview Container */}
       <div className="flex-1 flex items-center justify-center p-4">
         <div 
@@ -469,21 +326,32 @@ ${typographyVars}
             </div>
           )}
 
+          {/* 🆕 Framework badge */}
+          <div className="absolute top-2 left-2 z-20">
+            <div className="bg-black bg-opacity-80 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
+              <Settings size={10} />
+              <span>{currentFramework?.name}</span>
+            </div>
+          </div>
+
           {/* Iframe */}
           <iframe
             ref={iframeRef}
             className="w-full h-full border-0 rounded-lg"
             sandbox="allow-scripts allow-same-origin"
             title={`${selectedComp?.name || 'Component'} Preview`}
-            onLoad={handleIframeLoad}
           />
         </div>
       </div>
 
       {/* Status bar */}
       <div className="bg-white border-t border-gray-200 px-4 py-2 text-xs text-gray-500 flex items-center justify-between">
-        <div>
-          {selectedComp?.name || 'No component'} • Last updated: {new Date(lastUpdate).toLocaleTimeString()}
+        <div className="flex items-center space-x-4">
+          <span>{selectedComp?.name || 'No component'}</span>
+          <span>•</span>
+          <span>Framework: {currentFramework?.name} {tokens.framework.version}</span>
+          <span>•</span>
+          <span>Last updated: {new Date(lastUpdate).toLocaleTimeString()}</span>
         </div>
         <div>
           {currentViewport?.width || '100%'} × {currentViewport?.height || 'auto'}

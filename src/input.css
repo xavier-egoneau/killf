@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* CSS de base pour l'application */
 body {
@@ -18,15 +16,22 @@ body {
 /* Classes utilitaires personnalisées */
 @layer components {
   .btn {
-    @apply inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md transition-colors;
+    @apply inline-flex items-center border border-transparent text-sm font-medium rounded-md transition-colors;
+    padding: 0.5rem 1rem;
   }
   
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700;
+    @apply text-white;
+    background-color: var(--color-primary);
+  }
+  
+  .btn-primary:hover {
+    background-color: color-mix(in srgb, var(--color-primary) 85%, black);
   }
   
   .btn-secondary {
-    @apply bg-gray-600 text-white hover:bg-gray-700;
+    @apply text-white;
+    background-color: var(--color-secondary);
   }
 }
 
@@ -50,3 +55,7 @@ body {
   --font-lg: 1.125rem;
   --font-xl: 1.25rem;
 }
+
+
+.cssExport .cssExport-dropdown{height: 0;}
+.cssExport:hover .cssExport-dropdown{height: auto;}

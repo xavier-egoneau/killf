@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:css\"",
+    "dev": "concurrently --kill-others-on-fail \"npm run dev:css\" \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "vite",
     "dev:backend": "cd server && node server.js",
     "dev:css": "npx tailwindcss -i ./src/input.css -o ./src/output.css --watch",
@@ -14,7 +14,9 @@
     "start:backend": "cd server && node server.js",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test:server": "cd server && node debug.js"
+    "test:server": "cd server && node debug.js",
+    "css:build": "npx tailwindcss -i ./src/input.css -o ./src/output.css",
+    "css:dev": "npm run css:build && npm run dev:css"
   },
   "dependencies": {
     "@tailwindcss/cli": "^4.1.10",
