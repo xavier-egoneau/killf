@@ -17,6 +17,7 @@ import {
 import { componentCategories } from '../data';
 import { frameworkOptions, iconSetOptions, fontPresets } from '../data/tokens';
 import { useI18n } from '../hooks/useI18n';
+import LogoUpload from './LogoUpload';
 
 const Sidebar = ({ tokensHook, componentsHook }) => {
   const { t } = useI18n();
@@ -468,7 +469,7 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                 )}
               </div>
 
-              {/* Branding Section */}
+              {/* Branding Section - 🆕 Avec Upload SVG */}
               <div>
                 <button 
                   onClick={() => toggleSection('branding')}
@@ -492,42 +493,16 @@ const Sidebar = ({ tokensHook, componentsHook }) => {
                       />
                     </div>
                     
+                    {/* 🆕 Composant Logo Upload */}
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Logo URL</label>
-                      <input 
-                        type="url" 
-                        value={tokens.branding.logoUrl}
-                        onChange={(e) => updateBrandingToken('logoUrl', e.target.value)}
-                        className="w-full text-xs border rounded px-2 py-1"
-                        placeholder="https://example.com/logo.png"
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Brand Logo</label>
+                      <LogoUpload
+                        logoUrl={tokens.branding.logoUrl}
+                        logoAlt={tokens.branding.logoAlt}
+                        onLogoChange={(url) => updateBrandingToken('logoUrl', url)}
+                        onAltChange={(alt) => updateBrandingToken('logoAlt', alt)}
                       />
                     </div>
-                    
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Logo Alt Text</label>
-                      <input 
-                        type="text" 
-                        value={tokens.branding.logoAlt}
-                        onChange={(e) => updateBrandingToken('logoAlt', e.target.value)}
-                        className="w-full text-xs border rounded px-2 py-1"
-                        placeholder="Logo description"
-                      />
-                    </div>
-                    
-                    {/* Logo Preview */}
-                    {tokens.branding.logoUrl && (
-                      <div className="mt-2 p-2 bg-gray-50 rounded">
-                        <div className="text-xs font-medium text-gray-600 mb-1">Preview</div>
-                        <img 
-                          src={tokens.branding.logoUrl} 
-                          alt={tokens.branding.logoAlt}
-                          className="max-w-full h-8 object-contain"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

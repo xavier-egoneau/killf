@@ -2,3 +2,5 @@
 export * from './aiPromptGenerator';
 export * from './cssGenerator';
 export * from './templateEngine';
+export * from './cssExportGenerator';
+export * from './svgUploadUtils'; // 🆕 Utilitaires SVG

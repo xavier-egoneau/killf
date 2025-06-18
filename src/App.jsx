@@ -1,6 +1,6 @@
-// App.jsx - Version avec sauvegarde tokens
+// App.jsx - Version avec export CSS
 import React, { useState, useEffect } from 'react';
-import { Eye, Code, Wand2, Download, Save } from 'lucide-react';
+import { Eye, Code, Wand2, Download, Save, FileDown, Package } from 'lucide-react';
 
 // Import hooks
 import { useTokens, useComponents } from './hooks';
@@ -8,6 +8,7 @@ import { useI18n } from './hooks/useI18n';
 
 // Import utils
 import { generateCSSVariables, generateAIPrompt } from './utils';
+import { downloadExportPackage, downloadFile, generateCompleteExport } from './utils/cssExportGenerator';
 
 // Import components
 import { Sidebar, Canvas, PropertiesPanel } from './components';
@@ -16,6 +17,7 @@ import LanguageSwitcher from './components/LanguageSwitcher';
 function App() {
   const [activeTab, setActiveTab] = useState('visual');
   const [isSavingAll, setIsSavingAll] = useState(false);
+  const [isExportingCSS, setIsExportingCSS] = useState(false);
   const [saveResults, setSaveResults] = useState({});
   
   // i18n hook
@@ -57,6 +59,60 @@ function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // 🆕 Nouvelle fonction d'export CSS
+  const handleCSSExport = async (type = 'complete') => {
+    setIsExportingCSS(true);
+    
+    try {
+      const cssExports = generateCompleteExport(tokens, components);
+      
+      switch (type) {
+        case 'design-system':
+          downloadFile(cssExports.designSystem, 'design-system.css');
+          break;
+        case 'components':
+          downloadFile(cssExports.components, 'components.css');
+          break;
+        case 'framework':
+          downloadFile(cssExports.framework, `${tokens.framework.type}-framework.css`);
+          break;
+        case 'complete':
+          downloadFile(cssExports.combined, 'complete-design-system.css');
+          break;
+        case 'package':
+          // Télécharger tout le package
+          const packageInfo = downloadExportPackage(tokens, components);
+          console.log('📦 Export package generated:', packageInfo);
+          break;
+        default:
+          downloadFile(cssExports.combined, 'design-system.css');
+      }
+      
+      // Feedback visuel
+      const button = document.getElementById('css-export-btn');
+      if (button) {
+        const originalText = button.textContent;
+        button.textContent = `✅ CSS ${t('export')}ed!`;
+        setTimeout(() => {
+          button.textContent = originalText;
+        }, 2000);
+      }
+      
+    } catch (error) {
+      console.error('CSS Export failed:', error);
+      const button = document.getElementById('css-export-btn');
+      if (button) {
+        const originalText = button.textContent;
+        button.textContent = `❌ Export Failed`;
+        setTimeout(() => {
+          button.textContent = originalText;
+        }, 2000);
+      }
+    } finally {
+      setIsExportingCSS(false);
+    }
   };
 
   // Fonction Save All améliorée
@@ -226,6 +282,67 @@ function App() {
               {/* Language switcher */}
               <LanguageSwitcher />
               
+              {/* 🆕 CSS Export Dropdown */}
+              <div className="relative group">
+                <button 
+                  id="css-export-btn"
+                  disabled={isExportingCSS}
+                  className={`flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors ${
+                    isExportingCSS ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <FileDown size={16} className={`mr-2 ${isExportingCSS ? 'animate-bounce' : ''}`} />
+                  {isExportingCSS ? 'Exporting...' : 'Export CSS'}
+                </button>
+                
+                {/* Dropdown menu */}
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                  <div className="py-1">
+                    <button
+                      onClick={() => handleCSSExport('complete')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <Download size={14} className="mr-2" />
+                      Complete CSS
+                      <span className="ml-auto text-xs text-gray-500">All-in-one</span>
+                    </button>
+                    <button
+                      onClick={() => handleCSSExport('design-system')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <Download size={14} className="mr-2" />
+                      Design System
+                      <span className="ml-auto text-xs text-gray-500">Tokens + Utils</span>
+                    </button>
+                    <button
+                      onClick={() => handleCSSExport('components')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <Download size={14} className="mr-2" />
+                      Components Only
+                      <span className="ml-auto text-xs text-gray-500">Components CSS</span>
+                    </button>
+                    <button
+                      onClick={() => handleCSSExport('framework')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <Download size={14} className="mr-2" />
+                      Framework CSS
+                      <span className="ml-auto text-xs text-gray-500">{tokens.framework.type}</span>
+                    </button>
+                    <div className="border-t border-gray-100"></div>
+                    <button
+                      onClick={() => handleCSSExport('package')}
+                      className="w-full text-left px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 flex items-center font-medium"
+                    >
+                      <Package size={14} className="mr-2" />
+                      Complete Package
+                      <span className="ml-auto text-xs text-purple-500">All files</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
               {/* Save All button - Always visible but disabled if no changes */}
               <button 
                 id="save-all-btn"
@@ -247,13 +364,13 @@ function App() {
                 )}
               </button>
               
-              {/* Export button */}
+              {/* Export AI button */}
               <button 
                 onClick={handleExport}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 <Download size={16} className="mr-2" />
-                {t('export')}
+                {t('export')} AI
               </button>
             </div>
           </div>
