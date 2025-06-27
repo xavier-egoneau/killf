@@ -1,6 +1,6 @@
-// components/PropertiesPanel.jsx - Version avec i18n
+// components/PropertiesPanel.jsx - Version avec i18n et bouton supprimé
 import React, { useState, useEffect } from 'react';
-import { Settings, Eye, Code, Save } from 'lucide-react';
+import { Settings, Eye, Code } from 'lucide-react';
 import { useI18n } from '../hooks/useI18n';
 
 const PropertiesPanel = ({ componentsHook }) => {
@@ -33,12 +33,24 @@ const PropertiesPanel = ({ componentsHook }) => {
   useEffect(() => {
     const hasChanges = propsCode !== originalPropsCode;
     setHasUnsavedPropsChanges(hasChanges);
+    
+    // 🆕 Signaler les changements au composant parent via custom event
+    const propsChangesEvent = new CustomEvent('propsChanges', {
+      detail: { hasChanges }
+    });
+    window.dispatchEvent(propsChangesEvent);
   }, [propsCode, originalPropsCode]);
 
   // Vérifier les changements dans les props visuelles (mode Visual)
   useEffect(() => {
     const hasChanges = JSON.stringify(currentProps) !== JSON.stringify(lastSavedProps);
     setHasUnsavedVisualChanges(hasChanges);
+    
+    // 🆕 Signaler les changements au composant parent via custom event
+    const propsChangesEvent = new CustomEvent('propsChanges', {
+      detail: { hasChanges }
+    });
+    window.dispatchEvent(propsChangesEvent);
   }, [currentProps, lastSavedProps]);
 
   // Auto-save des props quand elles changent dans le mode visual (avec debounce)
@@ -133,17 +145,14 @@ const PropertiesPanel = ({ componentsHook }) => {
     }
   };
 
-  const discardPropsChanges = () => {
-    setPropsCode(originalPropsCode);
-    setHasUnsavedPropsChanges(false);
-  };
-
   // Écouter l'événement Save All
   useEffect(() => {
     const handleSaveAll = async () => {
       console.log('🔄 Save All triggered for PropertiesPanel');
       if (activeTab === 'code' && hasUnsavedPropsChanges) {
         await savePropsChanges();
+      } else if (activeTab === 'visual' && hasUnsavedVisualChanges) {
+        await saveVisualPropsChanges();
       }
     };
 
@@ -152,7 +161,7 @@ const PropertiesPanel = ({ componentsHook }) => {
     return () => {
       window.removeEventListener('saveAll', handleSaveAll);
     };
-  }, [activeTab, hasUnsavedPropsChanges, savePropsChanges]);
+  }, [activeTab, hasUnsavedPropsChanges, hasUnsavedVisualChanges]);
 
   const showSaveSuccess = (buttonId) => {
     const button = document.getElementById(buttonId);
@@ -193,16 +202,6 @@ const PropertiesPanel = ({ componentsHook }) => {
         }, 2000);
       }
     });
-  };
-
-  const formatPropsCode = () => {
-    try {
-      const parsed = JSON.parse(propsCode);
-      const formatted = JSON.stringify(parsed, null, 2);
-      setPropsCode(formatted);
-    } catch (error) {
-      console.error('Invalid JSON, cannot format');
-    }
   };
 
   if (!selectedComp) {
@@ -250,7 +249,7 @@ const PropertiesPanel = ({ componentsHook }) => {
             }`}
           >
             <Code size={14} className="mr-1" />
-            {t('code')} {hasUnsavedPropsChanges && <span className="text-red-500 ml-1">●</span>}
+            {t('code')}
           </button>
         </div>
       </div>
@@ -338,17 +337,6 @@ const PropertiesPanel = ({ componentsHook }) => {
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-700 font-medium text-sm">{t('propsDefinition')}</span>
               <div className="flex gap-2">
-                {hasUnsavedPropsChanges && (
-                  <button 
-                    id="save-props"
-                    onClick={savePropsChanges}
-                    disabled={isSavingProps}
-                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center"
-                  >
-                    <Save size={12} className="mr-1" />
-                    {isSavingProps ? t('saving') : t('save')}
-                  </button>
-                )}
                 <button 
                   id="copy-props"
                   onClick={copyPropsToClipboard}

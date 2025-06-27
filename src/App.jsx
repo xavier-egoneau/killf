@@ -19,7 +19,8 @@ function App() {
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [isExportingCSS, setIsExportingCSS] = useState(false);
   const [saveResults, setSaveResults] = useState({});
-  const [componentsUnsavedChanges, setComponentsUnsavedChanges] = useState(false); // 🆕
+  const [componentsUnsavedChanges, setComponentsUnsavedChanges] = useState(false);
+  const [propsUnsavedChanges, setPropsUnsavedChanges] = useState(false);
   
   // i18n hook
   const { t } = useI18n();
@@ -31,17 +32,26 @@ function App() {
   const { tokens, hasUnsavedTokenChanges } = tokensHook;
   const { components, selectedComponent, currentProps, updateComponent } = componentsHook;
 
-  // 🆕 Écouter les changements dans les composants via custom events
+  // Écouter les changements dans les composants via custom events
   useEffect(() => {
     const handleComponentChanges = (event) => {
-      console.log('🔄 Component changes detected:', event.detail);
-      setComponentsUnsavedChanges(event.detail.hasChanges);
+      if (event.detail && typeof event.detail.hasChanges === 'boolean') {
+        setComponentsUnsavedChanges(event.detail.hasChanges);
+      }
+    };
+
+    const handlePropsChanges = (event) => {
+      if (event.detail && typeof event.detail.hasChanges === 'boolean') {
+        setPropsUnsavedChanges(event.detail.hasChanges);
+      }
     };
 
     window.addEventListener('componentChanges', handleComponentChanges);
+    window.addEventListener('propsChanges', handlePropsChanges);
     
     return () => {
       window.removeEventListener('componentChanges', handleComponentChanges);
+      window.removeEventListener('propsChanges', handlePropsChanges);
     };
   }, []);
 
@@ -162,6 +172,7 @@ function App() {
           
           // Reset des indicateurs de changements
           setComponentsUnsavedChanges(false);
+          setPropsUnsavedChanges(false);
         } else {
           button.textContent = `⚠️ ${successes}/${results.length} saved`;
           button.style.backgroundColor = '#f59e0b';
@@ -191,18 +202,18 @@ function App() {
     }
   };
 
-  // 🔥 FIX: Indicateur des changements non sauvegardés amélioré
+  // Indicateur des changements non sauvegardés amélioré
   const hasAnyUnsavedChanges = () => {
-    const hasTokenChanges = hasUnsavedTokenChanges;
-    const hasCompChanges = componentsUnsavedChanges;
-    
-    console.log('🔍 Checking unsaved changes:', {
-      tokens: hasTokenChanges,
-      components: hasCompChanges,
-      total: hasTokenChanges || hasCompChanges
-    });
-    
-    return hasTokenChanges || hasCompChanges;
+    try {
+      const hasTokenChanges = Boolean(hasUnsavedTokenChanges);
+      const hasCompChanges = Boolean(componentsUnsavedChanges);
+      const hasPropsChanges = Boolean(propsUnsavedChanges);
+      
+      return hasTokenChanges || hasCompChanges || hasPropsChanges;
+    } catch (error) {
+      console.error('Error checking unsaved changes:', error);
+      return false;
+    }
   };
 
   return (
@@ -287,7 +298,7 @@ function App() {
               >
                 <Code size={16} className="mr-2" />
                 {t('code')}
-                {/* 🆕 Indicateur des changements sur l'onglet Code */}
+                {/* Indicateur des changements sur l'onglet Code */}
                 {componentsUnsavedChanges && <span className="ml-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>}
               </button>
               <button
@@ -307,8 +318,13 @@ function App() {
               {hasAnyUnsavedChanges() && (
                 <div className="flex items-center px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full unsaved-indicator">
                   <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
-                  {hasUnsavedTokenChanges && componentsUnsavedChanges ? 'Tokens + Code' : 
-                   hasUnsavedTokenChanges ? 'Tokens' : 'Code'} {t('unsavedChanges')}
+                  {(() => {
+                    const changes = [];
+                    if (hasUnsavedTokenChanges) changes.push('Tokens');
+                    if (componentsUnsavedChanges) changes.push('Code');
+                    if (propsUnsavedChanges) changes.push('Props');
+                    return changes.join(' + ');
+                  })()} {t('unsavedChanges')}
                 </div>
               )}
               
@@ -402,6 +418,11 @@ function App() {
                       Code
                     </span>
                   )}
+                  {propsUnsavedChanges && (
+                    <span className="px-2 py-0.5 bg-purple-500 text-white text-xs rounded-full">
+                      Props
+                    </span>
+                  )}
                 </div>
               </button>
               
@@ -432,6 +453,11 @@ function App() {
                   {componentsUnsavedChanges && (
                     <span className="flex items-center text-orange-600">
                       ⏳ Components en attente
+                    </span>
+                  )}
+                  {propsUnsavedChanges && (
+                    <span className="flex items-center text-purple-600">
+                      ⏳ Props en attente
                     </span>
                   )}
                 </div>

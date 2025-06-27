@@ -1,9 +1,18 @@
-// components/VisualTab.jsx - Version avec Framework Manager intégré
+// components/VisualTab.jsx - Version avec support Angular runtime
 import React, { useState, useEffect, useRef } from 'react';
-import { ExternalLink, Maximize2, Smartphone, Tablet, Monitor, RefreshCw, Settings, Info } from 'lucide-react';
+import { ExternalLink, Maximize2, Smartphone, Tablet, Monitor, RefreshCw, Settings, Info, Code, Zap } from 'lucide-react';
 import { useI18n } from '../hooks/useI18n';
 import { renderTemplate } from '../utils/templateEngine';
-import { generateFrameworkPreviewHTML, FRAMEWORK_CONFIGS, getFrameworkSuggestions } from '../utils/frameworkManager';
+import { 
+  generateFrameworkPreviewHTML, 
+  FRAMEWORK_CONFIGS, 
+  getFrameworkSuggestions,
+  updateFrameworkProps,
+  requiresFrameworkUpdate,
+  getFrameworkTemplateSuggestions,
+  convertTemplateToFramework,
+  generateFrameworkDefaultProps
+} from '../utils/frameworkManager';
 
 const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
   const { t } = useI18n();
@@ -13,6 +22,8 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [showFrameworkInfo, setShowFrameworkInfo] = useState(false);
   const [frameworkSuggestions, setFrameworkSuggestions] = useState(null);
+  const [showTemplateHelper, setShowTemplateHelper] = useState(false);
+  const [frameworkCompatibility, setFrameworkCompatibility] = useState(null);
   
   const getComponent = (componentPath) => {
     if (!componentPath) return null;
@@ -27,6 +38,14 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
   const selectedComp = getComponent(selectedComponent);
   const currentFramework = FRAMEWORK_CONFIGS[tokens.framework.type];
 
+  // 🆕 Vérifier la compatibilité du framework avec le composant
+  useEffect(() => {
+    if (selectedComp) {
+      const compatibility = requiresFrameworkUpdate(tokens.framework.type, selectedComp);
+      setFrameworkCompatibility(compatibility);
+    }
+  }, [selectedComp, tokens.framework.type]);
+
   // Mettre à jour les suggestions du framework quand le composant change
   useEffect(() => {
     if (selectedComp) {
@@ -36,12 +55,31 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
     }
   }, [selectedComp, tokens.framework]);
 
+  // 🆕 Mettre à jour les props dans l'iframe pour les frameworks runtime
+  useEffect(() => {
+    if (iframeRef.current && currentFramework?.requiresRuntime) {
+      updateFrameworkProps(iframeRef.current, currentProps, tokens.framework.type);
+    }
+  }, [currentProps, tokens.framework.type, currentFramework]);
+
   // Déterminer la hauteur optimale basée sur le type de composant
   const getOptimalHeight = () => {
     if (!selectedComp) return '400px';
     
     const componentType = selectedComp.category;
     const componentName = selectedComp.name.toLowerCase();
+    
+    // 🆕 Heights spécifiques pour Angular
+    if (tokens.framework.type === 'angular') {
+      const angularHeights = {
+        atoms: '200px',
+        molecules: '300px',
+        organisms: '400px',
+        templates: '600px',
+        pages: '800px'
+      };
+      return angularHeights[componentType] || '350px';
+    }
     
     const heightMap = {
       atoms: '200px',
@@ -96,7 +134,7 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
 
   const currentViewport = viewportSizes[viewportSize] || viewportSizes.desktop;
 
-  // 🆕 Génération du HTML avec framework intégré
+  // 🆕 Génération du HTML avec support runtime amélioré
   const generatePreviewHTML = () => {
     if (!selectedComp || !selectedComp.template) {
       return generateEmptyState();
@@ -104,12 +142,21 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
 
     const componentHTML = renderTemplate(selectedComp.template, currentProps);
     
-    // Utiliser le nouveau gestionnaire de framework
-    return generateFrameworkPreviewHTML(tokens, selectedComp, currentProps, componentHTML);
+    // 🆕 Utiliser le gestionnaire de framework enrichi
+    const previewHTML = generateFrameworkPreviewHTML(tokens, selectedComp, currentProps, componentHTML);
+    
+    // Pour Angular et autres frameworks runtime, on retourne directement l'iframe généré
+    if (currentFramework?.requiresRuntime) {
+      return previewHTML;
+    }
+    
+    return previewHTML;
   };
 
   // État vide quand pas de template
   const generateEmptyState = () => {
+    const templateSuggestion = getFrameworkTemplateSuggestions(tokens.framework.type, 'button');
+    
     return `
 <!DOCTYPE html>
 <html lang="en">
@@ -131,15 +178,25 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
         color: #6b7280;
       }
       .empty-state {
-        max-width: 400px;
+        max-width: 500px;
       }
       .empty-state h3 {
         margin: 0 0 16px 0;
         color: #374151;
       }
       .empty-state p {
-        margin: 0;
+        margin: 0 0 16px 0;
         line-height: 1.5;
+      }
+      .template-suggestion {
+        background: #f3f4f6;
+        padding: 16px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 12px;
+        text-align: left;
+        margin-top: 16px;
+        color: #374151;
       }
     </style>
   </head>
@@ -147,6 +204,12 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
     <div class="empty-state">
       <h3>${selectedComp?.name || 'No Component'}</h3>
       <p>This component needs a template to be previewed.<br>Go to the Code tab to add one.</p>
+      ${templateSuggestion ? `
+        <div class="template-suggestion">
+          <strong>💡 ${currentFramework?.name} Template Suggestion:</strong><br><br>
+          <code>${templateSuggestion.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code>
+        </div>
+      ` : ''}
     </div>
   </body>
 </html>`;
@@ -157,12 +220,18 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
     if (iframeRef.current) {
       setIsLoading(true);
       const html = generatePreviewHTML();
+      
+      // 🆕 Pour les frameworks runtime, on gère différemment
+      if (currentFramework?.requiresRuntime) {
+        console.log(`🚀 Loading ${currentFramework.name} runtime environment...`);
+      }
+      
       iframeRef.current.srcdoc = html;
       
       const timer = setTimeout(() => {
         setIsLoading(false);
         setLastUpdate(Date.now());
-      }, 300);
+      }, currentFramework?.requiresRuntime ? 800 : 300); // Plus de temps pour Angular
       
       return () => clearTimeout(timer);
     }
@@ -185,6 +254,16 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
     if (iframeRef.current) {
       const html = generatePreviewHTML();
       iframeRef.current.srcdoc = html;
+    }
+  };
+
+  // 🆕 Convertir le template vers le framework actuel
+  const convertTemplateToCurrentFramework = () => {
+    if (!selectedComp?.template) return;
+    
+    const suggestion = getFrameworkTemplateSuggestions(tokens.framework.type, 'button');
+    if (suggestion) {
+      setShowTemplateHelper(true);
     }
   };
 
@@ -233,10 +312,16 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
             })}
           </div>
 
-          {/* 🆕 Framework indicator avec info */}
+          {/* 🆕 Framework indicator avec type */}
           <div className="flex items-center space-x-2">
-            <div className="text-sm text-gray-500 font-medium">
+            <div className="text-sm text-gray-500 font-medium flex items-center">
+              {currentFramework?.requiresRuntime && (
+                <Zap size={14} className="mr-1 text-yellow-500" title="Runtime Framework" />
+              )}
               {currentFramework?.name} {tokens.framework.version}
+              {currentFramework?.type === 'js-framework' && (
+                <span className="ml-1 px-1 bg-purple-100 text-purple-600 text-xs rounded">JS</span>
+              )}
             </div>
             <button
               onClick={() => setShowFrameworkInfo(!showFrameworkInfo)}
@@ -249,6 +334,18 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
         </div>
 
         <div className="flex items-center space-x-2">
+          {/* 🆕 Template Helper Button */}
+          {!selectedComp.template && (
+            <button
+              onClick={convertTemplateToCurrentFramework}
+              className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded hover:bg-blue-200 transition-colors flex items-center"
+              title="Get template suggestion"
+            >
+              <Code size={14} className="mr-1" />
+              Template Help
+            </button>
+          )}
+
           {/* Refresh */}
           <button
             onClick={refreshPreview}
@@ -269,6 +366,23 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
         </div>
       </div>
 
+      {/* 🆕 Framework Compatibility Warning */}
+      {frameworkCompatibility && (
+        <div className="bg-orange-50 border-b border-orange-200 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-orange-500 rounded-full mr-3"></div>
+              <div className="text-sm text-orange-800">
+                <strong>Framework Mismatch:</strong> {frameworkCompatibility.reason}
+              </div>
+            </div>
+            <div className="text-sm text-orange-600">
+              Recommended: <strong>{frameworkCompatibility.recommended}</strong>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 🆕 Framework Info Panel */}
       {showFrameworkInfo && (
         <div className="bg-blue-50 border-b border-blue-200 px-4 py-3">
@@ -276,12 +390,17 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
             <div className="flex-1">
               <div className="text-sm font-medium text-blue-800 mb-2">
                 🚀 {currentFramework?.name} Integration
+                {currentFramework?.requiresRuntime && (
+                  <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded">
+                    Runtime Environment
+                  </span>
+                )}
               </div>
               <div className="text-xs text-blue-700 space-y-1">
-                <div><strong>Type:</strong> {currentFramework?.utilityBased ? 'Utility-based' : 'Component-based'}</div>
-                <div><strong>CDN:</strong> {currentFramework?.cdn.css ? '✅ Loaded' : '❌ None'}</div>
-                {currentFramework?.cssPrefix && (
-                  <div><strong>Prefix:</strong> {currentFramework.cssPrefix}</div>
+                <div><strong>Type:</strong> {currentFramework?.type === 'js-framework' ? 'JavaScript Framework' : 'CSS Framework'}</div>
+                <div><strong>CDN:</strong> {Array.isArray(currentFramework?.cdn.css) ? '✅ Multiple files' : (currentFramework?.cdn.css ? '✅ Loaded' : '❌ None')}</div>
+                {currentFramework?.requiresRuntime && (
+                  <div><strong>Runtime:</strong> ✅ Angular bootstrap active</div>
                 )}
               </div>
               
@@ -305,6 +424,35 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
         </div>
       )}
 
+      {/* 🆕 Template Helper Modal */}
+      {showTemplateHelper && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+            <div className="p-4 border-b">
+              <h3 className="text-lg font-medium">
+                {currentFramework?.name} Template Suggestions
+              </h3>
+            </div>
+            <div className="p-4">
+              <div className="text-sm text-gray-600 mb-4">
+                Here are some template suggestions for {currentFramework?.name}:
+              </div>
+              <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                {getFrameworkTemplateSuggestions(tokens.framework.type, 'button') || 'No suggestions available'}
+              </pre>
+            </div>
+            <div className="p-4 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setShowTemplateHelper(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Preview Container */}
       <div className="flex-1 flex items-center justify-center p-4">
         <div 
@@ -321,16 +469,21 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
             <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <div className="flex items-center space-x-2 text-gray-500">
                 <RefreshCw size={16} className="animate-spin" />
-                <span className="text-sm">{t('loading')}...</span>
+                <span className="text-sm">
+                  {currentFramework?.requiresRuntime ? `Loading ${currentFramework.name}...` : t('loading')}
+                </span>
               </div>
             </div>
           )}
 
-          {/* 🆕 Framework badge */}
+          {/* 🆕 Framework badge enrichi */}
           <div className="absolute top-2 left-2 z-20">
             <div className="bg-black bg-opacity-80 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
               <Settings size={10} />
               <span>{currentFramework?.name}</span>
+              {currentFramework?.requiresRuntime && (
+                <Zap size={10} className="text-yellow-400" />
+              )}
             </div>
           </div>
 
@@ -339,19 +492,30 @@ const VisualTab = ({ tokens, components, selectedComponent, currentProps }) => {
             ref={iframeRef}
             className="w-full h-full border-0 rounded-lg"
             sandbox="allow-scripts allow-same-origin"
-            title={`${selectedComp?.name || 'Component'} Preview`}
+            title={`${selectedComp?.name || 'Component'} Preview - ${currentFramework?.name}`}
           />
         </div>
       </div>
 
-      {/* Status bar */}
+      {/* Status bar enrichi */}
       <div className="bg-white border-t border-gray-200 px-4 py-2 text-xs text-gray-500 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <span>{selectedComp?.name || 'No component'}</span>
           <span>•</span>
-          <span>Framework: {currentFramework?.name} {tokens.framework.version}</span>
+          <span className="flex items-center">
+            Framework: {currentFramework?.name} {tokens.framework.version}
+            {currentFramework?.requiresRuntime && (
+              <span className="ml-1 px-1 bg-purple-100 text-purple-600 rounded">Runtime</span>
+            )}
+          </span>
           <span>•</span>
           <span>Last updated: {new Date(lastUpdate).toLocaleTimeString()}</span>
+          {currentFramework?.requiresRuntime && (
+            <>
+              <span>•</span>
+              <span className="text-green-600">Angular Bootstrap Active</span>
+            </>
+          )}
         </div>
         <div>
           {currentViewport?.width || '100%'} × {currentViewport?.height || 'auto'}

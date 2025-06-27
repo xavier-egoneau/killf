@@ -1,16 +1,14 @@
 /**
- * Générateur CSS complet pour export avec séparation framework
- * Version améliorée avec intégration du Framework Manager
+ * Générateur CSS complet pour export - Version corrigée
  */
 
 import { generateCSSVariables, generateUtilityClasses } from './cssGenerator';
-import { generateSeparatedFrameworkCSS, FRAMEWORK_CONFIGS, generateFrameworkIntegrationGuide } from './frameworkManager';
+import { FRAMEWORK_CONFIGS } from './frameworkManager';
 
 /**
  * Génère un export CSS complet avec séparation claire framework/custom
  */
 export const generateCompleteExport = (tokens, components) => {
-  const separatedCSS = generateSeparatedFrameworkCSS(tokens);
   const currentFramework = FRAMEWORK_CONFIGS[tokens.framework.type];
   
   const exports = {
@@ -24,7 +22,7 @@ export const generateCompleteExport = (tokens, components) => {
     components: generateComponentsCSS(components),
     
     // 4. CSS d'intégration framework (notre custom qui s'intègre au framework)
-    integration: separatedCSS.custom,
+    integration: generateFrameworkIntegrationCSS(tokens),
     
     // 5. CSS combiné (design system + components + integration)
     combined: generateCombinedCustomCSS(tokens, components),
@@ -41,32 +39,61 @@ export const generateCompleteExport = (tokens, components) => {
  */
 const generateFrameworkInstructionsCSS = (tokens) => {
   const framework = FRAMEWORK_CONFIGS[tokens.framework.type];
-  const guide = generateFrameworkIntegrationGuide(tokens);
+  
+  const getCDNInstructions = (framework) => {
+    switch (framework.type) {
+      case 'angular':
+        return `
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <!-- Roboto Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <!-- Angular Material CSS (install via npm) -->`;
+      case 'bootstrap':
+        return `
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@${tokens.framework.version}/dist/css/bootstrap.min.css" rel="stylesheet">`;
+      case 'tailwind':
+        return `
+  <script src="https://cdn.tailwindcss.com"></script>`;
+      default:
+        return '<!-- No external CSS required -->';
+    }
+  };
   
   return `/* =========================================
-   ${framework.name.toUpperCase()} FRAMEWORK
+   ${framework.name.toUpperCase()} FRAMEWORK INTEGRATION
    Generated: ${new Date().toISOString()}
    Version: ${tokens.framework.version}
    ========================================= */
 
 /*
-  INSTALLATION INSTRUCTIONS:
+  OPTION 1: CDN INTEGRATION (Recommended)
+  ========================================
+  Add this to your HTML head:${getCDNInstructions(framework)}
   
-  ${guide.installationSteps.map((step, i) => `${i + 1}. ${step}`).join('\n  ')}
+  Then include this integration file.
   
-  CDN OPTION:
-  ${framework.cdn.css ? `<link rel="stylesheet" href="${framework.cdn.css}">` : 'No CDN available'}
-  ${framework.cdn.js ? `<script src="${framework.cdn.js}"></script>` : ''}
+  OPTION 2: FULL CSS DOWNLOAD
+  ============================
+  For Bootstrap: Full CSS is available via "Download Complete Framework CSS" option
+  For Tailwind: Requires build process - use CDN or npm
+  For Angular Material: Requires Angular CLI setup
+  
+  INSTALLATION STEPS:
+  ${generateInstallationSteps(tokens.framework.type, tokens.framework.version).map((step, i) => `${i + 1}. ${step}`).join('\n  ')}
   
   NPM OPTION:
   npm install ${getFrameworkPackageName(tokens.framework.type)}
   
   USAGE EXAMPLE:
-  ${guide.exampleUsage}
+  ${generateExampleUsage(tokens.framework.type, tokens.colors.primary)}
 */
 
 /* Framework-specific integration CSS */
-${framework.customCSS || '/* No custom CSS needed for this framework */'}`;
+${framework.customCSS || '/* No custom CSS needed for this framework */'}
+
+/* Additional framework integration utilities */
+${generateFrameworkUtilities(tokens.framework.type)}`;
 };
 
 /**
@@ -154,12 +181,33 @@ ${componentStyles.join('\n')}`;
 };
 
 /**
+ * Génère le CSS d'intégration framework
+ */
+const generateFrameworkIntegrationCSS = (tokens) => {
+  const framework = FRAMEWORK_CONFIGS[tokens.framework.type];
+  
+  return `/* =========================================
+   FRAMEWORK INTEGRATION CSS
+   Generated: ${new Date().toISOString()}
+   Framework: ${framework.name}
+   ========================================= */
+
+${framework.customCSS || '/* No framework integration CSS needed */'}
+
+/* Design tokens integration */
+${generateDesignTokensCSS(tokens)}
+
+/* Framework-specific utilities */
+${generateFrameworkUtilities(tokens.framework.type)}`;
+};
+
+/**
  * Génère le CSS combiné custom (sans framework)
  */
 const generateCombinedCustomCSS = (tokens, components) => {
   const designSystem = generateDesignSystemCSS(tokens);
   const componentsCSS = generateComponentsCSS(components);
-  const integration = generateSeparatedFrameworkCSS(tokens).custom;
+  const integration = generateFrameworkIntegrationCSS(tokens);
 
   return `/* =========================================
    COMPLETE CUSTOM CSS
@@ -200,11 +248,10 @@ ${custom}`;
 };
 
 /**
- * Crée un package complet d'export avec séparation framework
+ * Crée un package complet d'export
  */
 export const createExportPackage = (tokens, components) => {
   const cssExports = generateCompleteExport(tokens, components);
-  const frameworkGuide = generateFrameworkIntegrationGuide(tokens);
   const currentFramework = FRAMEWORK_CONFIGS[tokens.framework.type];
   
   return {
@@ -223,13 +270,13 @@ export const createExportPackage = (tokens, components) => {
       'complete-with-framework.css': cssExports.complete
     },
     
-    // Documentation enrichie
-    readme: generateEnhancedReadme(tokens, frameworkGuide, currentFramework),
+    // Documentation
+    readme: generateEnhancedReadme(tokens, currentFramework),
     
-    // Guide d'intégration spécifique
-    integrationGuide: generateIntegrationGuide(tokens, frameworkGuide),
+    // Guide d'intégration
+    integrationGuide: generateIntegrationGuide(tokens),
     
-    // Package info enrichi
+    // Package info
     packageInfo: {
       name: `${tokens.branding.brandName || 'Design'} System`,
       framework: {
@@ -237,7 +284,7 @@ export const createExportPackage = (tokens, components) => {
         type: tokens.framework.type,
         version: tokens.framework.version,
         utilityBased: currentFramework?.utilityBased,
-        requiresBuild: frameworkGuide.requirements.buildStep
+        requiresRuntime: currentFramework?.requiresRuntime
       },
       generatedAt: new Date().toISOString(),
       stats: {
@@ -254,160 +301,206 @@ export const createExportPackage = (tokens, components) => {
 };
 
 /**
- * Génère un README enrichi avec guide framework
+ * Génère des utilitaires CSS spécifiques au framework
  */
-const generateEnhancedReadme = (tokens, frameworkGuide, currentFramework) => {
-  return `# ${tokens.branding.brandName || 'Design'} System
+const generateFrameworkUtilities = (frameworkType) => {
+  const utilities = {
+    bootstrap: `
+/* Bootstrap integration utilities */
+.btn-brand { 
+  --bs-btn-bg: var(--color-primary); 
+  --bs-btn-border-color: var(--color-primary);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--color-primary) 85%, black);
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--color-primary) 85%, black);
+}
+.text-brand { color: var(--color-primary) !important; }
+.bg-brand { background-color: var(--color-primary) !important; }`,
 
-Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+    tailwind: `
+/* Tailwind integration utilities */
+@layer utilities {
+  .text-brand { color: var(--color-primary); }
+  .bg-brand { background-color: var(--color-primary); }
+  .border-brand { border-color: var(--color-primary); }
+}`,
 
-## 🚀 Framework Integration: ${currentFramework.name}
+    angular: `
+/* Angular Material theme variables */
+:root {
+  --mdc-theme-primary: var(--color-primary);
+  --mdc-theme-secondary: var(--color-secondary);
+  --mdc-theme-error: var(--color-danger);
+}
 
-This design system is optimized for **${currentFramework.name} ${tokens.framework.version}**.
+.mat-mdc-button.mat-primary {
+  --mdc-filled-button-container-color: var(--color-primary);
+}`,
 
-### 📁 Files Included
+    vanilla: `
+/* Vanilla CSS utilities */
+.btn-brand { 
+  background: var(--color-primary); 
+  color: white; 
+  border: 1px solid var(--color-primary);
+}
+.btn-brand:hover { 
+  background: color-mix(in srgb, var(--color-primary) 85%, black); 
+}
+.text-brand { color: var(--color-primary); }
+.bg-brand { background-color: var(--color-primary); color: white; }`
+  };
 
-#### Core Files (Use These)
-- **design-system.css** - Design tokens + base utilities
-- **components.css** - All component styles
-- **${tokens.framework.type}-integration.css** - Framework-specific integration
-
-#### Reference Files
-- **${tokens.framework.type}-setup.css** - Framework installation guide
-- **custom-complete.css** - All custom CSS combined
-- **complete-with-framework.css** - Everything with framework instructions
-
-## ⚡ Quick Start
-
-### 1. Install Framework
-
-${frameworkGuide.installationSteps.map((step, i) => `${i + 1}. ${step}`).join('\n')}
-
-### 2. Include CSS Files
-
-\`\`\`html
-<!-- Framework CSS -->
-${currentFramework.cdn.css ? `<link rel="stylesheet" href="${currentFramework.cdn.css}">` : '<!-- Install framework locally -->'}
-
-<!-- Design System CSS -->
-<link rel="stylesheet" href="design-system.css">
-<link rel="stylesheet" href="${tokens.framework.type}-integration.css">
-<link rel="stylesheet" href="components.css">
-\`\`\`
-
-### 3. Use Components
-
-${frameworkGuide.exampleUsage}
-
-## 🎨 Design Tokens
-
-### Colors
-${Object.entries(tokens.colors).map(([key, value]) => `- **--color-${key}**: ${value}`).join('\n')}
-
-### Spacing
-${Object.entries(tokens.spacing).map(([key, value]) => `- **--spacing-${key}**: ${value}`).join('\n')}
-
-### Typography
-- **Primary Font**: ${tokens.typography.fontFamily}
-- **Secondary Font**: ${tokens.typography.secondaryFont}
-
-## 🔧 Framework Details
-
-- **Type**: ${currentFramework.utilityBased ? 'Utility-based' : 'Component-based'}
-- **Build Required**: ${frameworkGuide.requirements.buildStep ? 'Yes' : 'No'}
-- **CSS Prefix**: ${currentFramework.cssPrefix || 'None'}
-
-## 📱 Responsive Design
-
-The design system includes responsive utilities and follows mobile-first principles.
-
-## ♿ Accessibility
-
-- Focus indicators using \`--color-primary\`
-- Visually hidden utility class
-- Semantic color naming
-
-## 🔄 Updating
-
-To update design tokens, edit the CSS custom properties at the top of \`design-system.css\`.
-
-## 📄 License
-
-Generated by Design System Builder - AI Friendly Design System Creator
-`;
+  return utilities[frameworkType] || utilities.vanilla;
 };
 
 /**
- * Génère un guide d'intégration détaillé
+ * Génère les design tokens CSS
  */
-const generateIntegrationGuide = (tokens, frameworkGuide) => {
-  return `# ${FRAMEWORK_CONFIGS[tokens.framework.type].name} Integration Guide
+const generateDesignTokensCSS = (tokens) => {
+  const colorVars = Object.entries(tokens.colors)
+    .map(([key, value]) => `  --color-${key}: ${value};`)
+    .join('\n');
 
-## Overview
+  const spacingVars = Object.entries(tokens.spacing)
+    .map(([key, value]) => `  --spacing-${key}: ${value};`)
+    .join('\n');
 
-This guide explains how to integrate the design system with ${frameworkGuide.framework.name}.
+  const typographyVars = `  --font-family: ${tokens.typography.fontFamily};
+  --font-family-secondary: ${tokens.typography.secondaryFont};
+${Object.entries(tokens.typography.sizes)
+  .map(([key, value]) => `  --font-${key}: ${value};`)
+  .join('\n')}`;
 
-## Prerequisites
+  return `:root {
+${colorVars}
 
-${frameworkGuide.requirements.buildStep ? '- Build process (webpack, Vite, etc.)' : '- No build process required'}
-${frameworkGuide.requirements.postcss ? '- PostCSS setup' : ''}
-${frameworkGuide.requirements.configFile ? `- ${frameworkGuide.requirements.configFile} configuration` : ''}
+${spacingVars}
 
-## Installation Steps
-
-${frameworkGuide.installationSteps.map((step, i) => `### ${i + 1}. ${step}\n`).join('\n')}
-
-## File Loading Order
-
-1. **Framework CSS** (from CDN or local)
-2. **design-system.css** (design tokens + utilities)
-3. **${tokens.framework.type}-integration.css** (framework-specific styles)
-4. **components.css** (component styles)
-
-## Example Integration
-
-### HTML
-\`\`\`html
-<!DOCTYPE html>
-<html>
-<head>
-  <!-- Framework -->
-  ${frameworkGuide.framework.cdn.css ? `<link rel="stylesheet" href="${frameworkGuide.framework.cdn.css}">` : '<!-- Framework CSS -->'}
-  
-  <!-- Design System -->
-  <link rel="stylesheet" href="design-system.css">
-  <link rel="stylesheet" href="${tokens.framework.type}-integration.css">
-  <link rel="stylesheet" href="components.css">
-</head>
-<body>
-  ${frameworkGuide.exampleUsage}
-</body>
-</html>
-\`\`\`
-
-## Notes
-
-${frameworkGuide.requirements.note}
-
-## Troubleshooting
-
-- Ensure CSS files are loaded in the correct order
-- Check that framework CSS is loaded before design system CSS
-- Verify CSS custom properties are supported (IE11+)
-`;
+${typographyVars}
+}`;
 };
 
 /**
- * Obtient le nom du package npm pour un framework
+ * Génère les étapes d'installation
+ */
+const generateInstallationSteps = (frameworkType, version) => {
+  const steps = {
+    tailwind: [
+      `npm install -D tailwindcss@${version}`,
+      'npx tailwindcss init',
+      'Configure content paths in tailwind.config.js',
+      'Add @tailwind directives to your CSS',
+      'Include design-system.css after Tailwind'
+    ],
+    bootstrap: [
+      `npm install bootstrap@${version}`,
+      'Import Bootstrap CSS before your custom CSS',
+      'Include design-system.css after Bootstrap',
+      'Optionally import Bootstrap JS for components'
+    ],
+    angular: [
+      `ng add @angular/material@${version}`,
+      'Choose a theme during setup',
+      'Import custom theme in styles.scss',
+      'Include design-system.css in angular.json'
+    ],
+    vanilla: [
+      'No installation required',
+      'Include design-system.css in your HTML',
+      'Start using the utility classes'
+    ]
+  };
+
+  return steps[frameworkType] || steps.vanilla;
+};
+
+/**
+ * Génère un exemple d'usage
+ */
+const generateExampleUsage = (frameworkType, primaryColor) => {
+  const examples = {
+    tailwind: `<button class="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90">
+  Tailwind + Design System
+</button>`,
+    bootstrap: `<button class="btn btn-primary">
+  Bootstrap + Design System
+</button>`,
+    angular: `<button mat-raised-button color="primary">
+  Angular Material + Design System
+</button>`,
+    vanilla: `<button class="btn btn-primary">
+  Vanilla + Design System
+</button>`
+  };
+
+  return examples[frameworkType] || examples.vanilla;
+};
+
+/**
+ * Obtient le nom du package npm
  */
 const getFrameworkPackageName = (frameworkType) => {
   const packages = {
     tailwind: 'tailwindcss',
     bootstrap: 'bootstrap',
     angular: '@angular/material',
-    vanilla: '' // No package needed
+    vanilla: ''
   };
   return packages[frameworkType] || '';
+};
+
+/**
+ * Génère le README
+ */
+const generateEnhancedReadme = (tokens, currentFramework) => {
+  return `# ${tokens.branding.brandName || 'Design'} System
+
+Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+
+## 🚀 Framework Integration: ${currentFramework?.name || 'Unknown'}
+
+This design system is optimized for **${currentFramework?.name || 'Unknown'} ${tokens.framework.version}**.
+
+## Quick Start
+
+1. Include the framework CSS/JS
+2. Add design-system.css
+3. Start using components
+
+## Files Included
+
+- \`design-system.css\` - Core design tokens and utilities
+- \`components.css\` - All component styles
+- \`${tokens.framework.type}-integration.css\` - Framework-specific integration
+- \`complete-design-system.css\` - Everything combined
+
+## Support
+
+For questions and documentation, visit your design system documentation.
+`;
+};
+
+/**
+ * Génère le guide d'intégration
+ */
+const generateIntegrationGuide = (tokens) => {
+  return `# Integration Guide for ${tokens.framework.type}
+
+## Installation
+
+Follow the installation steps included in the CSS comments.
+
+## Usage
+
+Include the CSS files in this order:
+1. Framework CSS (${tokens.framework.type})
+2. design-system.css
+3. components.css
+
+## Customization
+
+Modify the CSS custom properties in \`:root\` to customize colors, spacing, and typography.
+`;
 };
 
 /**
@@ -426,7 +519,7 @@ export const downloadFile = (content, filename, type = 'text/css') => {
 };
 
 /**
- * Télécharge un package complet avec séparation framework
+ * Télécharge un package complet
  */
 export const downloadExportPackage = (tokens, components) => {
   const exportPackage = createExportPackage(tokens, components);
@@ -435,7 +528,7 @@ export const downloadExportPackage = (tokens, components) => {
   Object.entries(exportPackage.files).forEach(([filename, content], index) => {
     setTimeout(() => {
       downloadFile(content, filename, 'text/css');
-    }, index * 150); // Délai entre les téléchargements
+    }, index * 150);
   });
   
   // Télécharger la documentation

@@ -1,16 +1,20 @@
-/**
- * Gestionnaire centralisé des frameworks CSS
- * Gère le chargement, la configuration et l'intégration des frameworks
- */
+// utils/frameworkManager.js - Version complètement propre et fonctionnelle
 
 import { frameworkOptions } from '../data/tokens';
+import { 
+  requiresRuntimeEnvironment, 
+  generateFrameworkIframe,
+  updateIframeProps 
+} from './angularFrameworkManager';
 
 /**
- * Configuration détaillée des frameworks avec CDN et composants
+ * Configuration détaillée des frameworks
  */
 export const FRAMEWORK_CONFIGS = {
   tailwind: {
     ...frameworkOptions.tailwind,
+    type: 'css-framework',
+    requiresRuntime: false,
     cdn: {
       css: 'https://cdn.tailwindcss.com',
       js: `<script>
@@ -32,131 +36,95 @@ export const FRAMEWORK_CONFIGS = {
     },
     components: {
       button: 'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded',
-      card: 'bg-white shadow-md rounded-lg p-6',
-      alert: 'bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded'
-    },
-    utilities: {
-      spacing: ['p-', 'm-', 'px-', 'py-', 'mx-', 'my-'],
-      colors: ['text-', 'bg-', 'border-'],
-      typography: ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl']
+      card: 'bg-white shadow-md rounded-lg p-6'
     }
   },
 
   bootstrap: {
     ...frameworkOptions.bootstrap,
+    type: 'css-framework',
+    requiresRuntime: false,
     cdn: {
       css: 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
       js: 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js'
     },
     components: {
       button: 'btn btn-primary',
-      card: 'card',
-      alert: 'alert alert-primary'
+      card: 'card'
     },
-    utilities: {
-      spacing: ['p-', 'm-', 'px-', 'py-', 'mx-', 'my-'],
-      colors: ['text-', 'bg-', 'border-'],
-      typography: ['fs-1', 'fs-2', 'fs-3', 'fs-4', 'fs-5', 'fs-6']
-    },
-    customCSS: `
-      :root {
-        --bs-primary: var(--color-primary);
-        --bs-secondary: var(--color-secondary);
-        --bs-success: var(--color-success);
-        --bs-danger: var(--color-danger);
-      }
-    `
+    customCSS: `:root {
+  --bs-primary: var(--color-primary);
+  --bs-secondary: var(--color-secondary);
+  --bs-success: var(--color-success);
+  --bs-danger: var(--color-danger);
+}`
   },
 
   angular: {
     ...frameworkOptions.angular,
+    type: 'js-framework',
+    requiresRuntime: true,
     cdn: {
-      css: `
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-      `,
-      js: ''
+      css: [
+        'https://fonts.googleapis.com/icon?family=Material+Icons',
+        'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap',
+        'https://unpkg.com/@angular/material@17/prebuilt-themes/indigo-pink.css'
+      ],
+      js: [
+        'https://unpkg.com/zone.js@0.14.2/dist/zone.min.js',
+        'https://unpkg.com/@angular/core@17/bundles/core.umd.js'
+      ]
     },
     components: {
-      button: 'mat-raised-button',
-      card: 'mat-card',
-      alert: 'mat-card mat-elevation-z2'
+      button: 'mat-raised-button color="primary"',
+      card: 'mat-card'
     },
-    utilities: {
-      spacing: [],
-      colors: ['mat-primary', 'mat-accent', 'mat-warn'],
-      typography: ['mat-headline-1', 'mat-headline-2', 'mat-body-1', 'mat-body-2']
-    },
-    customCSS: `
-      body {
-        font-family: Roboto, "Helvetica Neue", sans-serif;
-        margin: 0;
-      }
-      
-      .mat-primary {
-        background-color: var(--color-primary) !important;
-        color: white !important;
-      }
-      
-      .mat-accent {
-        background-color: var(--color-secondary) !important;
-        color: white !important;
-      }
-    `
+    customCSS: `body {
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  margin: 0;
+}
+
+:root {
+  --mdc-theme-primary: var(--color-primary);
+  --mdc-theme-secondary: var(--color-secondary);
+  --mdc-theme-error: var(--color-danger);
+}`
   },
 
   vanilla: {
     ...frameworkOptions.vanilla,
-    cdn: {
-      css: '',
-      js: ''
-    },
+    type: 'css-framework',
+    requiresRuntime: false,
+    cdn: { css: '', js: '' },
     components: {
       button: 'btn',
-      card: 'card',
-      alert: 'alert'
+      card: 'card'
     },
-    utilities: {
-      spacing: ['p-xs', 'p-sm', 'p-md', 'p-lg', 'p-xl'],
-      colors: ['text-primary', 'bg-primary', 'border-primary'],
-      typography: ['text-sm', 'text-md', 'text-lg', 'text-xl']
-    },
-    customCSS: `
-      /* Framework-agnostic utilities */
-      .btn {
-        display: inline-block;
-        padding: var(--spacing-sm) var(--spacing-md);
-        background: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-family: inherit;
-        text-decoration: none;
-        transition: all 0.2s ease;
-      }
-      
-      .btn:hover {
-        opacity: 0.9;
-        transform: translateY(-1px);
-      }
-      
-      .card {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        padding: var(--spacing-lg);
-        margin-bottom: var(--spacing-md);
-      }
-      
-      .alert {
-        padding: var(--spacing-md);
-        border-radius: 4px;
-        background: rgba(var(--color-primary-rgb), 0.1);
-        border: 1px solid var(--color-primary);
-        color: var(--color-primary);
-      }
-    `
+    customCSS: `.btn {
+  display: inline-block;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn:hover { 
+  opacity: 0.9; 
+  transform: translateY(-1px); 
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}`
   }
 };
 
@@ -167,11 +135,24 @@ export const generateFrameworkPreviewHTML = (tokens, component, currentProps, co
   const framework = FRAMEWORK_CONFIGS[tokens.framework.type];
   if (!framework) return componentHTML;
 
+  // Si le framework nécessite un runtime (Angular, React, Vue)
+  if (framework.requiresRuntime) {
+    console.log(`🚀 Generating runtime environment for ${framework.name}`);
+    return generateFrameworkIframe(tokens.framework.type, componentHTML, tokens, currentProps);
+  }
+
+  // Pour les frameworks CSS classiques
+  return generateStandardFrameworkHTML(tokens, component, currentProps, componentHTML, framework);
+};
+
+/**
+ * Génère le HTML pour les frameworks CSS standard
+ */
+function generateStandardFrameworkHTML(tokens, component, currentProps, componentHTML, framework) {
   const designTokensCSS = generateDesignTokensCSS(tokens);
   const frameworkCSS = framework.customCSS || '';
   
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -179,14 +160,16 @@ export const generateFrameworkPreviewHTML = (tokens, component, currentProps, co
     <title>${component?.name || 'Component'} Preview - ${framework.name}</title>
     
     <!-- Framework CSS -->
-    ${framework.cdn.css.startsWith('<') ? framework.cdn.css : `<link rel="stylesheet" href="${framework.cdn.css}">`}
+    ${Array.isArray(framework.cdn.css) 
+      ? framework.cdn.css.map(url => `<link rel="stylesheet" href="${url}">`).join('\n    ')
+      : (framework.cdn.css ? `<link rel="stylesheet" href="${framework.cdn.css}">` : '')
+    }
     
     <!-- Design Tokens + Framework Integration -->
     <style>
       ${designTokensCSS}
       ${frameworkCSS}
       
-      /* Preview container styles */
       body {
         margin: 0;
         padding: 20px;
@@ -207,31 +190,292 @@ export const generateFrameworkPreviewHTML = (tokens, component, currentProps, co
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       }
       
-      /* Component styles */
       ${component?.scss || ''}
     </style>
     
     <!-- Framework JS -->
-    ${framework.cdn.js.startsWith('<') ? framework.cdn.js : (framework.cdn.js ? `<script src="${framework.cdn.js}"></script>` : '')}
+    ${Array.isArray(framework.cdn.js)
+      ? framework.cdn.js.map(url => `<script src="${url}"></script>`).join('\n    ')
+      : (framework.cdn.js || '')
+    }
   </head>
   <body>
     <div class="preview-container">
       ${componentHTML}
     </div>
     
-    <!-- Framework info overlay -->
     <div style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: monospace; z-index: 9999;">
       ${framework.name} ${tokens.framework.version} • ${component?.name || 'Component'}
     </div>
   </body>
 </html>`;
+}
+
+/**
+ * Met à jour les props dans un iframe runtime
+ */
+export const updateFrameworkProps = (iframeElement, newProps, frameworkType) => {
+  const framework = FRAMEWORK_CONFIGS[frameworkType];
+  
+  if (framework?.requiresRuntime) {
+    updateIframeProps(iframeElement, newProps);
+  }
+};
+
+/**
+ * Obtient les suggestions de classes selon le framework
+ */
+export const getFrameworkSuggestions = (tokens, componentType = 'button') => {
+  const framework = FRAMEWORK_CONFIGS[tokens.framework.type];
+  if (!framework) return null;
+
+  const baseClasses = framework.components[componentType] || '';
+
+  return {
+    base: baseClasses,
+    variants: {
+      primary: baseClasses,
+      secondary: baseClasses.replace('primary', 'secondary'),
+      success: baseClasses.replace('primary', 'success'),
+      danger: baseClasses.replace('primary', 'danger')
+    }
+  };
+};
+
+/**
+ * Obtient les suggestions de template selon le framework
+ */
+export const getFrameworkTemplateSuggestions = (frameworkType, componentType = 'button') => {
+  const suggestions = {
+    tailwind: {
+      button: `<button class="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90{% if disabled %} opacity-50 cursor-not-allowed{% endif %}">
+  {{ text|default('Button') }}
+</button>`,
+      card: `<div class="bg-white rounded-lg shadow-md p-6">
+  {% if title %}<h3 class="text-lg font-semibold mb-4">{{ title }}</h3>{% endif %}
+  <div class="text-gray-600">{{ content }}</div>
+</div>`
+    },
+    
+    bootstrap: {
+      button: `<button class="btn btn-primary{% if size %} btn-{{ size }}{% endif %}"{% if disabled %} disabled{% endif %}>
+  {{ text|default('Button') }}
+</button>`,
+      card: `<div class="card">
+  {% if title %}<div class="card-header"><h5 class="card-title">{{ title }}</h5></div>{% endif %}
+  <div class="card-body">
+    <p class="card-text">{{ content }}</p>
+  </div>
+</div>`
+    },
+    
+    angular: {
+      button: `<button mat-raised-button 
+  [color]="variant|default:'primary'"
+  [disabled]="disabled"
+  (click)="onClick($event)">
+  <mat-icon *ngIf="iconLeft">{{ iconLeft }}</mat-icon>
+  {{ text|default('Button') }}
+  <mat-icon *ngIf="iconRight">{{ iconRight }}</mat-icon>
+</button>`,
+      card: `<mat-card>
+  <mat-card-header *ngIf="title">
+    <mat-card-title>{{ title }}</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    {{ content }}
+  </mat-card-content>
+  <mat-card-actions *ngIf="hasActions">
+    <button mat-button color="primary">Action</button>
+  </mat-card-actions>
+</mat-card>`
+    },
+    
+    vanilla: {
+      button: `<button class="btn{% if variant %} btn-{{ variant }}{% endif %}"{% if disabled %} disabled{% endif %}>
+  {{ text|default('Button') }}
+</button>`,
+      card: `<div class="card">
+  {% if title %}<h3 class="card-title">{{ title }}</h3>{% endif %}
+  <div class="card-content">{{ content }}</div>
+</div>`
+    }
+  };
+
+  return suggestions[frameworkType]?.[componentType] || null;
+};
+
+/**
+ * Convertit un template générique vers un framework spécifique
+ */
+export const convertTemplateToFramework = (genericTemplate, fromFramework, toFramework) => {
+  if (fromFramework === toFramework) return genericTemplate;
+  
+  let converted = genericTemplate;
+  
+  // Conversions basiques
+  const conversions = {
+    'tailwind-to-angular': {
+      'bg-primary': 'color="primary"',
+      'text-white': '',
+      'px-4 py-2': '',
+      'rounded': ''
+    },
+    'bootstrap-to-angular': {
+      'btn btn-primary': 'mat-raised-button color="primary"',
+      'card': 'mat-card'
+    },
+    'angular-to-tailwind': {
+      'mat-raised-button': 'bg-primary text-white px-4 py-2 rounded',
+      'mat-card': 'bg-white rounded-lg shadow-md p-6'
+    }
+  };
+  
+  const conversionKey = `${fromFramework}-to-${toFramework}`;
+  const conversionMap = conversions[conversionKey];
+  
+  if (conversionMap) {
+    Object.entries(conversionMap).forEach(([from, to]) => {
+      const regex = new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      converted = converted.replace(regex, to);
+    });
+  }
+  
+  return converted;
+};
+
+/**
+ * Détecte si un composant nécessite une mise à jour du framework
+ */
+export const requiresFrameworkUpdate = (currentFramework, component) => {
+  if (!component || !component.template) return null;
+  
+  const angularSyntax = /(\*ngIf|\*ngFor|\(click\)|\[.*\]|mat-)/;
+  const vueSyntax = /(v-if|v-for|@click|:.*=)/;
+  const reactSyntax = /(className=|onClick=|\{.*\})/;
+  
+  if (angularSyntax.test(component.template) && currentFramework !== 'angular') {
+    return { 
+      recommended: 'angular', 
+      reason: 'Template contains Angular-specific syntax' 
+    };
+  }
+  
+  if (vueSyntax.test(component.template) && currentFramework !== 'vue') {
+    return { 
+      recommended: 'vue', 
+      reason: 'Template contains Vue-specific syntax' 
+    };
+  }
+  
+  if (reactSyntax.test(component.template) && currentFramework !== 'react') {
+    return { 
+      recommended: 'react', 
+      reason: 'Template contains React-specific syntax' 
+    };
+  }
+  
+  return null;
+};
+
+/**
+ * Génère des props par défaut selon le framework
+ */
+export const generateFrameworkDefaultProps = (frameworkType, componentType) => {
+  const frameworkProps = {
+    angular: {
+      button: {
+        variant: { type: 'select', options: ['primary', 'accent', 'warn'], default: 'primary' },
+        text: { type: 'string', default: 'Click me' },
+        disabled: { type: 'boolean', default: false },
+        iconLeft: { type: 'string', default: '' },
+        iconRight: { type: 'string', default: '' }
+      },
+      card: {
+        title: { type: 'string', default: 'Card Title' },
+        content: { type: 'string', default: 'Card content goes here...' },
+        hasActions: { type: 'boolean', default: true }
+      }
+    },
+    
+    tailwind: {
+      button: {
+        variant: { type: 'select', options: ['primary', 'secondary', 'success', 'danger'], default: 'primary' },
+        size: { type: 'select', options: ['sm', 'md', 'lg'], default: 'md' },
+        text: { type: 'string', default: 'Button' },
+        disabled: { type: 'boolean', default: false }
+      }
+    },
+    
+    bootstrap: {
+      button: {
+        variant: { type: 'select', options: ['primary', 'secondary', 'success', 'danger'], default: 'primary' },
+        size: { type: 'select', options: ['sm', '', 'lg'], default: '' },
+        text: { type: 'string', default: 'Button' },
+        disabled: { type: 'boolean', default: false }
+      }
+    }
+  };
+  
+  return frameworkProps[frameworkType]?.[componentType] || {};
+};
+
+/**
+ * Obtient les instructions d'installation pour un framework
+ */
+export const getFrameworkInstallationGuide = (frameworkType) => {
+  const guides = {
+    angular: {
+      title: 'Angular Material Setup',
+      steps: [
+        'npm install @angular/core @angular/material @angular/cdk',
+        'ng add @angular/material',
+        'Import required modules in your app.module.ts',
+        'Include a prebuilt theme in styles.css'
+      ],
+      documentation: 'https://material.angular.io/guide/getting-started'
+    },
+    
+    tailwind: {
+      title: 'Tailwind CSS Setup',
+      steps: [
+        'npm install -D tailwindcss',
+        'npx tailwindcss init',
+        'Configure content paths in tailwind.config.js',
+        'Add Tailwind directives to your CSS'
+      ],
+      documentation: 'https://tailwindcss.com/docs/installation'
+    },
+    
+    bootstrap: {
+      title: 'Bootstrap Setup',
+      steps: [
+        'npm install bootstrap',
+        'Import Bootstrap CSS and JS',
+        'Use Bootstrap components',
+        'Customize with CSS variables'
+      ],
+      documentation: 'https://getbootstrap.com/docs/5.3/getting-started/introduction/'
+    },
+    
+    vanilla: {
+      title: 'Vanilla CSS Setup',
+      steps: [
+        'No installation required',
+        'Include design-system.css in your HTML',
+        'Start using the utility classes'
+      ],
+      documentation: null
+    }
+  };
+  
+  return guides[frameworkType] || guides.vanilla;
 };
 
 /**
  * Génère les design tokens CSS optimisés
  */
-const generateDesignTokensCSS = (tokens) => {
-  // CSS Variables de base
+function generateDesignTokensCSS(tokens) {
   const colorVars = Object.entries(tokens.colors)
     .map(([key, value]) => `  --color-${key}: ${value};`)
     .join('\n');
@@ -246,234 +490,20 @@ ${Object.entries(tokens.typography.sizes)
   .map(([key, value]) => `  --font-${key}: ${value};`)
   .join('\n')}`;
 
-  // Variables RGB pour les frameworks qui en ont besoin (comme Material)
-  const rgbVars = Object.entries(tokens.colors)
-    .map(([key, value]) => {
-      const rgb = hexToRgb(value);
-      return rgb ? `  --color-${key}-rgb: ${rgb.r}, ${rgb.g}, ${rgb.b};` : '';
-    })
-    .filter(Boolean)
-    .join('\n');
-
   return `:root {
 ${colorVars}
 
 ${spacingVars}
 
 ${typographyVars}
-
-${rgbVars}
 }`;
-};
-
-/**
- * Convertit hex en RGB
- */
-const hexToRgb = (hex) => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : null;
-};
-
-/**
- * Génère le CSS d'export séparé par framework
- */
-export const generateSeparatedFrameworkCSS = (tokens) => {
-  const framework = FRAMEWORK_CONFIGS[tokens.framework.type];
-  if (!framework) return { framework: '', custom: '' };
-
-  const designTokens = generateDesignTokensCSS(tokens);
-  const frameworkCustom = framework.customCSS || '';
-
-  return {
-    // CSS Framework pur (sans nos customizations)
-    framework: `/* ${framework.name} ${tokens.framework.version} Framework CSS */
-/* Include this from CDN or npm package */
-/* CDN: ${framework.cdn.css} */
-
-/* For local installation: */
-/* npm install ${getFrameworkPackageName(tokens.framework.type)} */`,
-
-    // Notre CSS custom qui s'intègre avec le framework
-    custom: `/* Design System Integration for ${framework.name} */
-${designTokens}
-
-${frameworkCustom}
-
-/* Design System Utilities */
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 var(--spacing-md);
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}`
-  };
-};
-
 /**
- * Obtient le nom du package npm pour un framework
+ * Export des fonctions utilitaires depuis angularFrameworkManager
  */
-const getFrameworkPackageName = (frameworkType) => {
-  const packages = {
-    tailwind: 'tailwindcss',
-    bootstrap: 'bootstrap',
-    angular: '@angular/material',
-    vanilla: '' // No package needed
-  };
-  return packages[frameworkType] || '';
-};
-
-/**
- * Génère les classes suggérées selon le framework
- */
-export const getFrameworkSuggestions = (tokens, componentType = 'button') => {
-  const framework = FRAMEWORK_CONFIGS[tokens.framework.type];
-  if (!framework) return [];
-
-  const baseClasses = framework.components[componentType] || '';
-  const utilities = framework.utilities;
-
-  return {
-    base: baseClasses,
-    variants: {
-      primary: `${baseClasses} ${getColorClass(framework, 'primary')}`,
-      secondary: `${baseClasses} ${getColorClass(framework, 'secondary')}`,
-      success: `${baseClasses} ${getColorClass(framework, 'success')}`,
-      danger: `${baseClasses} ${getColorClass(framework, 'danger')}`
-    },
-    utilities: utilities
-  };
-};
-
-/**
- * Obtient la classe de couleur selon le framework
- */
-const getColorClass = (framework, colorType) => {
-  switch (framework.utilityBased) {
-    case true: // Tailwind
-      return `bg-${colorType} text-white`;
-    default: // Bootstrap, Angular, Vanilla
-      return framework.cssPrefix ? `${framework.cssPrefix}${colorType}` : `${colorType}`;
-  }
-};
-
-/**
- * Vérifie si un framework nécessite des imports spéciaux
- */
-export const getFrameworkRequirements = (frameworkType) => {
-  const requirements = {
-    tailwind: {
-      buildStep: true,
-      configFile: 'tailwind.config.js',
-      postcss: true,
-      note: 'Requires build process with PostCSS'
-    },
-    bootstrap: {
-      buildStep: false,
-      configFile: null,
-      postcss: false,
-      note: 'Can be used directly from CDN'
-    },
-    angular: {
-      buildStep: true,
-      configFile: 'angular.json',
-      postcss: false,
-      note: 'Requires Angular CLI and Material setup'
-    },
-    vanilla: {
-      buildStep: false,
-      configFile: null,
-      postcss: false,
-      note: 'No build process required'
-    }
-  };
-
-  return requirements[frameworkType] || requirements.vanilla;
-};
-
-/**
- * Génère les instructions d'intégration spécifiques
- */
-export const generateFrameworkIntegrationGuide = (tokens) => {
-  const framework = FRAMEWORK_CONFIGS[tokens.framework.type];
-  const requirements = getFrameworkRequirements(tokens.framework.type);
-  
-  return {
-    framework: framework,
-    requirements: requirements,
-    cdn: framework.cdn,
-    customCSS: framework.customCSS,
-    installationSteps: generateInstallationSteps(tokens.framework.type, tokens.framework.version),
-    exampleUsage: generateExampleUsage(tokens.framework.type, tokens.colors.primary)
-  };
-};
-
-/**
- * Génère les étapes d'installation
- */
-const generateInstallationSteps = (frameworkType, version) => {
-  const steps = {
-    tailwind: [
-      `npm install -D tailwindcss@${version}`,
-      'npx tailwindcss init',
-      'Configure content paths in tailwind.config.js',
-      'Add @tailwind directives to your CSS',
-      'Include design-system.css after Tailwind'
-    ],
-    bootstrap: [
-      `npm install bootstrap@${version}`,
-      'Import Bootstrap CSS before your custom CSS',
-      'Include design-system.css after Bootstrap',
-      'Optionally import Bootstrap JS for components'
-    ],
-    angular: [
-      `ng add @angular/material@${version}`,
-      'Choose a theme during setup',
-      'Import custom theme in styles.scss',
-      'Include design-system.css in angular.json'
-    ],
-    vanilla: [
-      'No installation required',
-      'Include design-system.css in your HTML',
-      'Start using the utility classes'
-    ]
-  };
-
-  return steps[frameworkType] || steps.vanilla;
-};
-
-/**
- * Génère un exemple d'usage
- */
-const generateExampleUsage = (frameworkType, primaryColor) => {
-  const examples = {
-    tailwind: `<button class="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90">
-  Tailwind + Design System
-</button>`,
-    bootstrap: `<button class="btn btn-primary">
-  Bootstrap + Design System
-</button>`,
-    angular: `<button mat-raised-button color="primary">
-  Angular Material + Design System
-</button>`,
-    vanilla: `<button class="btn btn-primary">
-  Vanilla + Design System
-</button>`
-  };
-
-  return examples[frameworkType] || examples.vanilla;
+export {
+  requiresRuntimeEnvironment,
+  generateFrameworkIframe,
+  updateIframeProps
 };

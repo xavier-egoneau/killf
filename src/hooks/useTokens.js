@@ -1,11 +1,10 @@
+// hooks/useTokens.js - Version avec événements de changement de framework
+
 import { useState, useEffect } from 'react';
 import { defaultTokens, spacingPresets, fontPresets, frameworkOptions } from '../data/tokens';
 
 const API_BASE = 'http://localhost:3001/api';
 
-/**
- * Hook for managing design tokens with server persistence
- */
 export const useTokens = () => {
   const [tokens, setTokens] = useState(defaultTokens);
   const [originalTokens, setOriginalTokens] = useState(defaultTokens);
@@ -69,7 +68,6 @@ export const useTokens = () => {
 
       const result = await response.json();
       
-      // Mettre à jour les états après une sauvegarde réussie
       setOriginalTokens({ ...tokens });
       setHasUnsavedTokenChanges(false);
       
@@ -89,7 +87,6 @@ export const useTokens = () => {
       if (hasUnsavedTokenChanges) {
         const result = await saveTokens();
         
-        // Dispatcher un événement pour informer les autres composants
         window.dispatchEvent(new CustomEvent('tokensSaveResult', { 
           detail: result 
         }));
@@ -109,7 +106,6 @@ export const useTokens = () => {
       const keys = path.split('.');
       let current = newTokens;
       
-      // Navigate to the nested property
       for (let i = 0; i < keys.length - 1; i++) {
         if (!current[keys[i]]) {
           current[keys[i]] = {};
@@ -117,7 +113,6 @@ export const useTokens = () => {
         current = current[keys[i]];
       }
       
-      // Set the value
       current[keys[keys.length - 1]] = value;
       return newTokens;
     });
@@ -153,7 +148,6 @@ export const useTokens = () => {
         }
       }));
     } else {
-      // Handle nested typography sizes
       setTokens(prev => ({
         ...prev,
         typography: {
@@ -187,9 +181,11 @@ export const useTokens = () => {
     }));
   };
 
-  // 🆕 Framework token avec application automatique du spacing
+  // 🆕 Framework token avec événement de changement
   const updateFrameworkToken = (frameworkKey, value) => {
     setTokens(prev => {
+      const currentFramework = prev.framework.type;
+      
       const newTokens = {
         ...prev,
         framework: {
@@ -198,7 +194,7 @@ export const useTokens = () => {
         }
       };
 
-      // 🚀 Application automatique du spacing preset quand le framework change
+      // 🚀 Application automatique du spacing preset
       if (frameworkKey === 'type') {
         const frameworkConfig = frameworkOptions[value];
         if (frameworkConfig && frameworkConfig.spacingPreset) {
@@ -208,13 +204,33 @@ export const useTokens = () => {
             newTokens.spacing = { ...spacingPreset };
           }
         }
+
+        // 🆕 Déclencher l'événement de changement de framework
+        if (currentFramework !== value) {
+          console.log(`🔄 Framework changed from ${currentFramework} to ${value}`);
+          
+          // Déclencher l'événement après un court délai pour que l'état soit mis à jour
+          setTimeout(() => {
+            const frameworkChangeEvent = new CustomEvent('frameworkChanged', {
+              detail: {
+                previousFramework: currentFramework,
+                newFramework: value,
+                framework: {
+                  type: value,
+                  version: prev.framework.version
+                },
+                autoSpacingApplied: !!frameworkConfig?.spacingPreset
+              }
+            });
+            window.dispatchEvent(frameworkChangeEvent);
+          }, 100);
+        }
       }
 
       return newTokens;
     });
   };
 
-  // Applique un preset de spacing (maintenu pour compatibilité, mais plus utilisé dans l'UI)
   const applySpacingPreset = (presetName) => {
     const preset = spacingPresets[presetName];
     if (preset) {
@@ -225,7 +241,6 @@ export const useTokens = () => {
     }
   };
 
-  // Applique un preset de fonts
   const applyFontPreset = (presetName) => {
     const preset = fontPresets[presetName];
     if (preset) {
@@ -240,7 +255,6 @@ export const useTokens = () => {
     }
   };
 
-  // Ajoute un nouveau token de couleur
   const addColorToken = (name, value) => {
     setTokens(prev => ({
       ...prev,
@@ -251,9 +265,7 @@ export const useTokens = () => {
     }));
   };
 
-  // Supprime un token de couleur
   const removeColorToken = (name) => {
-    // Ne pas supprimer les couleurs de base
     const protectedColors = ['primary', 'secondary', 'success', 'danger'];
     if (protectedColors.includes(name)) return;
 
@@ -267,7 +279,6 @@ export const useTokens = () => {
     });
   };
 
-  // Ajoute un nouveau token de spacing
   const addSpacingToken = (name, value) => {
     setTokens(prev => ({
       ...prev,
@@ -278,9 +289,7 @@ export const useTokens = () => {
     }));
   };
 
-  // Supprime un token de spacing
   const removeSpacingToken = (name) => {
-    // Ne pas supprimer les tailles de base
     const protectedSizes = ['xs', 'sm', 'md', 'lg', 'xl'];
     if (protectedSizes.includes(name)) return;
 
@@ -313,10 +322,33 @@ export const useTokens = () => {
     return current;
   };
 
-  // 🆕 Obtenir le preset de spacing pour le framework actuel
   const getCurrentSpacingPreset = () => {
     const frameworkConfig = frameworkOptions[tokens.framework.type];
     return frameworkConfig?.spacingPreset || 'custom';
+  };
+
+  // 🆕 Fonction pour obtenir les informations du framework actuel
+  const getCurrentFrameworkInfo = () => {
+    const frameworkConfig = frameworkOptions[tokens.framework.type];
+    return {
+      ...frameworkConfig,
+      version: tokens.framework.version,
+      requiresRuntime: ['angular', 'react', 'vue'].includes(tokens.framework.type)
+    };
+  };
+
+  // 🆕 Fonction pour vérifier si le framework supporte certaines fonctionnalités
+  const frameworkSupports = (feature) => {
+    const framework = tokens.framework.type;
+    const features = {
+      runtime: ['angular', 'react', 'vue'],
+      materialDesign: ['angular'],
+      utilityClasses: ['tailwind', 'bootstrap'],
+      customCSS: ['vanilla'],
+      components: ['angular', 'react', 'vue', 'bootstrap']
+    };
+    
+    return features[feature]?.includes(framework) || false;
   };
 
   return {
@@ -341,6 +373,8 @@ export const useTokens = () => {
     resetTokens,
     getTokenValue,
     saveTokens,
-    getCurrentSpacingPreset // 🆕 Nouvelle fonction
+    getCurrentSpacingPreset,
+    getCurrentFrameworkInfo, // 🆕
+    frameworkSupports // 🆕
   };
 };
